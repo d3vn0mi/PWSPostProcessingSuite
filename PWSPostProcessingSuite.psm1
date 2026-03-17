@@ -55,6 +55,7 @@ catch {
 # Export public functions
 Export-ModuleMember -Function @(
     'Invoke-LinuxArtifactScan',
+    'Invoke-BatchLinuxScan',
     'Get-ScanReport',
     'Import-ScanRules'
 )
