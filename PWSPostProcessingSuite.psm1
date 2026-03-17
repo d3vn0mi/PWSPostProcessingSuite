@@ -20,7 +20,7 @@ $Script:SeverityOrder = @{
 }
 
 # Dot-source all private functions (utilities, analyzers, reporting)
-$PrivateFunctions = Get-ChildItem -Path "$PSScriptRoot/Private" -Recurse -Filter '*.ps1' -ErrorAction SilentlyContinue
+$PrivateFunctions = Get-ChildItem -Path (Join-Path $PSScriptRoot 'Private') -Recurse -Filter '*.ps1' -ErrorAction SilentlyContinue
 foreach ($file in $PrivateFunctions) {
     try {
         . $file.FullName
@@ -31,7 +31,7 @@ foreach ($file in $PrivateFunctions) {
 }
 
 # Dot-source all public functions
-$PublicFunctions = Get-ChildItem -Path "$PSScriptRoot/Public" -Filter '*.ps1' -ErrorAction SilentlyContinue
+$PublicFunctions = Get-ChildItem -Path (Join-Path $PSScriptRoot 'Public') -Filter '*.ps1' -ErrorAction SilentlyContinue
 foreach ($file in $PublicFunctions) {
     try {
         . $file.FullName
@@ -43,7 +43,7 @@ foreach ($file in $PublicFunctions) {
 
 # Load default rules on module import
 try {
-    $rulesPath = Join-Path $PSScriptRoot 'Config' 'DefaultRules.yaml'
+    $rulesPath = Join-Path (Join-Path $PSScriptRoot 'Config') 'DefaultRules.yaml'
     if (Test-Path $rulesPath) {
         $Script:DefaultRules = Import-YamlConfig -Path $rulesPath
     }

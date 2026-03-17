@@ -66,7 +66,7 @@ function Invoke-LinuxArtifactScan {
         $rules = $Script:DefaultRules.Clone()
     }
     else {
-        $defaultRulesPath = Join-Path $Script:ModuleRoot 'Config' 'DefaultRules.yaml'
+        $defaultRulesPath = Join-Path (Join-Path $Script:ModuleRoot 'Config') 'DefaultRules.yaml'
         if (Test-Path $defaultRulesPath) {
             try {
                 $rules = Import-YamlConfig -Path $defaultRulesPath
