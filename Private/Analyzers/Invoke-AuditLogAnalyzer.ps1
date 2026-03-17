@@ -79,7 +79,9 @@ function Invoke-AuditLogAnalyzer {
             -ArtifactPath "/var/log/audit/audit.log" `
             -Evidence @($execveEvents | Select-Object -First 10) `
             -Recommendation "Investigate each suspicious command execution and correlate with user sessions" `
-            -MITRE "T1059"))
+            -MITRE "T1059" `
+            -CVSSv3Score "8.4" `
+            -TechnicalImpact "Suspicious command execution (reverse shells, encoded commands) may indicate active attacker access enabling arbitrary code execution on the system."))
     }
 
     # Sensitive file access
@@ -90,7 +92,9 @@ function Invoke-AuditLogAnalyzer {
             -ArtifactPath "/var/log/audit/audit.log" `
             -Evidence @($fileAccessEvents | Select-Object -First 10) `
             -Recommendation "Review who accessed these files and whether it was authorized" `
-            -MITRE "T1005"))
+            -MITRE "T1005" `
+            -CVSSv3Score "5.5" `
+            -TechnicalImpact "Unauthorized access to sensitive files such as /etc/shadow or SSH keys could expose credentials and enable privilege escalation or lateral movement."))
     }
 
     # User/group modifications
@@ -101,7 +105,9 @@ function Invoke-AuditLogAnalyzer {
             -ArtifactPath "/var/log/audit/audit.log" `
             -Evidence @($userAuthEvents | Select-Object -First 10) `
             -Recommendation "Verify all user/group changes were authorized" `
-            -MITRE "T1136"))
+            -MITRE "T1136" `
+            -CVSSv3Score "5.3" `
+            -TechnicalImpact "Unauthorized user or group modifications could establish persistent backdoor accounts or grant elevated privileges to attacker-controlled accounts."))
     }
 
     # Anomaly events
