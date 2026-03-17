@@ -9,6 +9,7 @@
     PowerShellVersion = '7.0'
     FunctionsToExport = @(
         'Invoke-LinuxArtifactScan',
+        'Invoke-BatchLinuxScan',
         'Get-ScanReport',
         'Import-ScanRules'
     )
