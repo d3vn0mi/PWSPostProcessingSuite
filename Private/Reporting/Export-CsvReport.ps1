@@ -38,16 +38,18 @@ function Export-CsvReport {
             }
 
             [PSCustomObject]@{
-                Id             = $finding.Id
-                Severity       = $finding.Severity
-                Category       = $finding.Category
-                Title          = $finding.Title
-                Description    = $finding.Description
-                ArtifactPath   = $finding.ArtifactPath
-                Evidence       = $evidenceJoined
-                Recommendation = $finding.Recommendation
-                Timestamp      = $timestampStr
-                MITRE          = $finding.MITRE
+                Id              = $finding.Id
+                Severity        = $finding.Severity
+                CVSSv3Score     = $finding.CVSSv3Score
+                Category        = $finding.Category
+                Title           = $finding.Title
+                Description     = $finding.Description
+                TechnicalImpact = $finding.TechnicalImpact
+                ArtifactPath    = $finding.ArtifactPath
+                Evidence        = $evidenceJoined
+                Recommendation  = $finding.Recommendation
+                Timestamp       = $timestampStr
+                MITRE           = $finding.MITRE
             }
         }
 
@@ -56,12 +58,12 @@ function Export-CsvReport {
         } else {
             # Write an empty CSV with headers only
             [PSCustomObject]@{
-                Id = ''; Severity = ''; Category = ''; Title = ''
-                Description = ''; ArtifactPath = ''; Evidence = ''
+                Id = ''; Severity = ''; CVSSv3Score = ''; Category = ''; Title = ''
+                Description = ''; TechnicalImpact = ''; ArtifactPath = ''; Evidence = ''
                 Recommendation = ''; Timestamp = ''; MITRE = ''
             } | Export-Csv -Path $OutputPath -NoTypeInformation -Encoding utf8 -Force
             # Overwrite with just the header line
-            $header = '"Id","Severity","Category","Title","Description","ArtifactPath","Evidence","Recommendation","Timestamp","MITRE"'
+            $header = '"Id","Severity","CVSSv3Score","Category","Title","Description","TechnicalImpact","ArtifactPath","Evidence","Recommendation","Timestamp","MITRE"'
             $header | Out-File -FilePath $OutputPath -Encoding utf8 -Force
         }
 

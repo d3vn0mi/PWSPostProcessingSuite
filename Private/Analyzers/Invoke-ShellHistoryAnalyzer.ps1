@@ -166,6 +166,27 @@ function Invoke-ShellHistoryAnalyzer {
         $displayCategory = ($categoryName -replace '_', ' ')
         $displayCategory = (Get-Culture).TextInfo.ToTitleCase($displayCategory)
 
+        # Determine CVSSv3 score based on severity
+        $cvssScore = switch ($highestSeverity) {
+            'Critical' { '9.8' }
+            'High'     { '7.5' }
+            'Medium'   { '5.3' }
+            'Low'      { '3.1' }
+            default    { '' }
+        }
+
+        # Determine technical impact based on category
+        $techImpact = switch -Wildcard ($categoryName) {
+            '*reverse_shell*'        { 'Indicates active command-and-control channel allowing remote attacker to execute arbitrary commands on the system.' }
+            '*credential*'           { 'May allow attacker to harvest credentials for lateral movement or privilege escalation.' }
+            '*privilege_escalation*' { 'Enables privilege escalation from current user to root or other privileged accounts.' }
+            '*reconnaissance*'       { 'Exposes system configuration and network topology data that could aid further attacks.' }
+            '*exfiltration*'         { 'Indicates potential data theft or unauthorized transfer of sensitive information.' }
+            '*cryptomining*'         { 'Unauthorized use of system resources for cryptocurrency mining, indicating compromise.' }
+            '*defense_evasion*'      { 'Attacker may have tampered with logging or security controls to hide malicious activity.' }
+            default                  { 'Suspicious command execution detected that may indicate system compromise or unauthorized activity.' }
+        }
+
         $findings.Add((New-Finding `
             -Id 'HIST-001' `
             -Severity $highestSeverity `
@@ -175,7 +196,9 @@ function Invoke-ShellHistoryAnalyzer {
             -ArtifactPath ($historyFiles[0].Path) `
             -Evidence @($evidenceLines) `
             -Recommendation "Investigate the flagged commands in context. Determine if they were executed by an authorized user for legitimate purposes or represent attacker activity. Correlate with authentication logs and other artifacts." `
-            -MITRE $mitreString
+            -MITRE $mitreString `
+            -CVSSv3Score $cvssScore `
+            -TechnicalImpact $techImpact
         ))
     }
 
@@ -211,7 +234,9 @@ function Invoke-ShellHistoryAnalyzer {
         -ArtifactPath ($historyFiles[0].Path) `
         -Evidence @($summaryEvidence) `
         -Recommendation 'Review the full history files for additional context around suspicious commands.' `
-        -MITRE ''
+        -MITRE '' `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''
     ))
 
     return $findings.ToArray()

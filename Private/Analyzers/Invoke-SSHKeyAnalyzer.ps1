@@ -51,7 +51,9 @@ function Invoke-SSHKeyAnalyzer {
                             -ArtifactPath "/home/$userName/.ssh/authorized_keys" `
                             -Evidence @($cmdKey.Substring(0, [Math]::Min($cmdKey.Length, 200))) `
                             -Recommendation "Verify the forced command is expected and legitimate" `
-                            -MITRE "T1098.004"))
+                            -MITRE "T1098.004" `
+                            -CVSSv3Score "6.5" `
+                            -TechnicalImpact "Forced command keys can be used as a backdoor to execute attacker-controlled commands on every SSH login."))
                     }
                 }
 
@@ -66,11 +68,15 @@ function Invoke-SSHKeyAnalyzer {
                         -Description "One or more SSH keys have from= restrictions limiting which IPs can use them." `
                         -ArtifactPath "/home/$userName/.ssh/authorized_keys" `
                         -Evidence @($fromKeys | ForEach-Object { $_.Substring(0, [Math]::Min($_.Length, 150)) }) `
-                        -Recommendation "Review allowed source IPs for legitimacy"))
+                        -Recommendation "Review allowed source IPs for legitimacy" `
+                        -CVSSv3Score '' `
+                        -TechnicalImpact ''))
                 }
 
                 # Report all authorized keys found (High for root)
                 $severity = if ($userName -eq 'root') { 'Medium' } else { 'Informational' }
+                $sshkey003CVSSv3Score = if ($userName -eq 'root') { '6.5' } else { '' }
+                $sshkey003TechnicalImpact = if ($userName -eq 'root') { 'Authorized SSH keys for root grant passwordless remote root access, enabling full system control if any key is compromised.' } else { '' }
                 $findings.Add((New-Finding -Id "SSHKEY-003" -Severity $severity -Category "SSH Keys" `
                     -Title "Authorized SSH keys found for $userName ($keyCount keys)" `
                     -Description "$keyCount SSH public keys are authorized for $userName. Each key grants passwordless SSH access." `
@@ -82,7 +88,9 @@ function Invoke-SSHKeyAnalyzer {
                         $comment = if ($parts.Count -ge 3) { $parts[-1] } else { 'no-comment' }
                         "$keyType ... $comment"
                     }) `
-                    -Recommendation "Verify all authorized keys belong to legitimate users"))
+                    -Recommendation "Verify all authorized keys belong to legitimate users" `
+                    -CVSSv3Score $sshkey003CVSSv3Score `
+                    -TechnicalImpact $sshkey003TechnicalImpact))
             }
         }
 
@@ -102,7 +110,9 @@ function Invoke-SSHKeyAnalyzer {
                     -ArtifactPath "/home/$userName/.ssh/known_hosts" `
                     -Evidence @($onionHosts | Select-Object -First 5) `
                     -Recommendation "Investigate why Tor hidden services were accessed via SSH" `
-                    -MITRE "T1090.003"))
+                    -MITRE "T1090.003" `
+                    -CVSSv3Score "7.5" `
+                    -TechnicalImpact "SSH connections through Tor indicate covert communication channels, potentially used for data exfiltration or C2 traffic evasion."))
             }
 
             # Extract unique host IPs/names for analysis
@@ -117,7 +127,9 @@ function Invoke-SSHKeyAnalyzer {
                     -Description "$userName has connected to $hostCount SSH hosts." `
                     -ArtifactPath "/home/$userName/.ssh/known_hosts" `
                     -Evidence @($hosts | Select-Object -First 20) `
-                    -Recommendation "Review connected hosts for unauthorized lateral movement"))
+                    -Recommendation "Review connected hosts for unauthorized lateral movement" `
+                    -CVSSv3Score '' `
+                    -TechnicalImpact ''))
             }
         }
 
@@ -136,7 +148,9 @@ function Invoke-SSHKeyAnalyzer {
                     -ArtifactPath "/home/$userName/.ssh/config" `
                     -Evidence @($proxyLines) `
                     -Recommendation "Verify ProxyCommand entries are for legitimate use" `
-                    -MITRE "T1090.001"))
+                    -MITRE "T1090.001" `
+                    -CVSSv3Score "5.3" `
+                    -TechnicalImpact "ProxyCommand entries can be used for network tunneling and pivoting to access otherwise unreachable internal systems."))
             }
 
             # Check for StrictHostKeyChecking no (MITM risk)
@@ -147,7 +161,9 @@ function Invoke-SSHKeyAnalyzer {
                     -ArtifactPath "/home/$userName/.ssh/config" `
                     -Evidence @("StrictHostKeyChecking no") `
                     -Recommendation "Set StrictHostKeyChecking to yes or ask" `
-                    -MITRE "T1557"))
+                    -MITRE "T1557" `
+                    -CVSSv3Score "5.9" `
+                    -TechnicalImpact "Disabling host key checking allows man-in-the-middle attacks on SSH connections, enabling credential interception and session hijacking."))
             }
         }
 
@@ -160,7 +176,9 @@ function Invoke-SSHKeyAnalyzer {
                 -Description "SSH private key files found in $userName's .ssh directory." `
                 -ArtifactPath "/home/$userName/.ssh/" `
                 -Evidence @($privateKeyFiles.Name) `
-                -Recommendation "Ensure private keys are password-protected and not shared"))
+                -Recommendation "Ensure private keys are password-protected and not shared" `
+                -CVSSv3Score '' `
+                -TechnicalImpact ''))
         }
     }
 

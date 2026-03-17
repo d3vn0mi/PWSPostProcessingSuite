@@ -29,7 +29,9 @@ function Invoke-LogIntegrityAnalyzer {
             -ArtifactPath "/var/log/$($emptyLog.Name)" `
             -Evidence @("File size: 0 bytes") `
             -Recommendation "Investigate why this log file is empty. Check for log rotation or deliberate clearing." `
-            -MITRE "T1070.002"))
+            -MITRE "T1070.002" `
+            -CVSSv3Score $(if ($severity -eq 'High') { '7.5' } else { '5.3' }) `
+            -TechnicalImpact "Log clearing destroys forensic evidence, allowing attacker activity to go undetected and hindering incident response"))
     }
 
     # Check for time gaps in syslog-format logs
@@ -86,7 +88,9 @@ function Invoke-LogIntegrityAnalyzer {
                 -ArtifactPath "/var/log/$logName" `
                 -Evidence @($gaps | Select-Object -First 5 | ForEach-Object { "Gap: $($_.Start) to $($_.End) ($($_.Duration.TotalHours.ToString('F1')) hours)" }) `
                 -Recommendation "Correlate gaps with system uptime records. Investigate if gaps align with suspicious activity." `
-                -MITRE "T1070.002"))
+                -MITRE "T1070.002" `
+                -CVSSv3Score $(if ($severity -eq 'High') { '7.5' } else { '5.3' }) `
+                -TechnicalImpact "Time gaps in logs may indicate selective log tampering to conceal attacker actions during specific time windows"))
         }
     }
 
@@ -103,7 +107,9 @@ function Invoke-LogIntegrityAnalyzer {
                 -ArtifactPath "/var/log/$logName" `
                 -Evidence @("Total lines: $($lines.Count)") `
                 -Recommendation "Check log rotation config and compare with expected log volume" `
-                -MITRE "T1070.002"))
+                -MITRE "T1070.002" `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact "Recently cleared logs indicate active anti-forensics, destroying evidence of attacker activity and compromising incident response capability"))
         }
     }
 
@@ -120,7 +126,9 @@ function Invoke-LogIntegrityAnalyzer {
                     -ArtifactPath "/var/log/$logName" `
                     -Evidence @("File not found: /var/log/$logName") `
                     -Recommendation "Verify if the log file exists on the source system. Its absence may indicate tampering." `
-                    -MITRE "T1070.002"))
+                    -MITRE "T1070.002" `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact "Missing log file may indicate deletion to cover attacker tracks, reducing ability to detect and investigate compromise"))
             }
         }
     }

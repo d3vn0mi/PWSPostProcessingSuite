@@ -32,7 +32,9 @@ function Invoke-EnvironmentAnalyzer {
                     -ArtifactPath $envFile `
                     -Evidence @($trimmed) `
                     -Recommendation "Remove LD_PRELOAD from environment and investigate the referenced library" `
-                    -MITRE "T1574.006"))
+                    -MITRE "T1574.006" `
+                    -CVSSv3Score "9.8" `
+                    -TechnicalImpact "LD_PRELOAD forces a malicious shared library to load into every process, enabling system-wide rootkit functionality including credential theft, command interception, and persistent backdoor access."))
             }
 
             # Check for LD_LIBRARY_PATH manipulation
@@ -46,7 +48,9 @@ function Invoke-EnvironmentAnalyzer {
                             -ArtifactPath $envFile `
                             -Evidence @($trimmed) `
                             -Recommendation "Remove suspicious paths from LD_LIBRARY_PATH" `
-                            -MITRE "T1574.006"))
+                            -MITRE "T1574.006" `
+                            -CVSSv3Score "7.8" `
+                            -TechnicalImpact "Suspicious directories in LD_LIBRARY_PATH enable shared library hijacking, allowing an attacker to intercept function calls and execute arbitrary code in the context of any program."))
                         break
                     }
                 }
@@ -67,7 +71,9 @@ function Invoke-EnvironmentAnalyzer {
                                 -ArtifactPath $envFile `
                                 -Evidence @($trimmed) `
                                 -Recommendation "Remove suspicious directories from PATH" `
-                                -MITRE "T1574.007"))
+                                -MITRE "T1574.007" `
+                                -CVSSv3Score "7.8" `
+                                -TechnicalImpact "World-writable directories in PATH allow any local user to place malicious binaries that hijack common commands, enabling privilege escalation when executed by root or other users."))
                             break
                         }
                     }
@@ -80,7 +86,9 @@ function Invoke-EnvironmentAnalyzer {
                             -ArtifactPath $envFile `
                             -Evidence @($trimmed) `
                             -Recommendation "Remove empty entries from PATH" `
-                            -MITRE "T1574.007"))
+                            -MITRE "T1574.007" `
+                            -CVSSv3Score "5.3" `
+                            -TechnicalImpact "Empty PATH entries include the current working directory in command search, allowing attackers to hijack commands by placing malicious binaries in frequently visited directories."))
                     }
                 }
 
@@ -92,7 +100,9 @@ function Invoke-EnvironmentAnalyzer {
                         -ArtifactPath $envFile `
                         -Evidence @($trimmed) `
                         -Recommendation "Remove '.' from PATH" `
-                        -MITRE "T1574.007"))
+                        -MITRE "T1574.007" `
+                        -CVSSv3Score "5.3" `
+                        -TechnicalImpact "Including the current directory in PATH enables command hijacking by placing malicious binaries in any directory where users commonly work."))
                 }
             }
 
@@ -104,7 +114,9 @@ function Invoke-EnvironmentAnalyzer {
                     -ArtifactPath $envFile `
                     -Evidence @($trimmed) `
                     -Recommendation "Verify the proxy server is legitimate and authorized" `
-                    -MITRE "T1090"))
+                    -MITRE "T1090" `
+                    -CVSSv3Score "5.9" `
+                    -TechnicalImpact "A malicious system-wide proxy can intercept, modify, or redirect all HTTP/HTTPS traffic, enabling credential theft, data exfiltration, and man-in-the-middle attacks."))
             }
         }
     }

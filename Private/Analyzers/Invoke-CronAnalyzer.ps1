@@ -169,7 +169,9 @@ function Invoke-CronAnalyzer {
                     -ArtifactPath $source `
                     -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd", "Matched pattern: $($matchResult.Pattern)") `
                     -Recommendation 'Immediately investigate the cron entry. Remove the malicious cron job and perform a full compromise assessment.' `
-                    -MITRE 'T1053.003'))
+                    -MITRE 'T1053.003' `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact "Reverse shell in a cron job provides the attacker with persistent remote command execution, automatically re-establishing access on a scheduled basis."))
             }
         }
 
@@ -192,7 +194,9 @@ function Invoke-CronAnalyzer {
                         -ArtifactPath $source `
                         -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd", "Matched pattern: $rsPattern") `
                         -Recommendation 'Immediately investigate the cron entry. Remove the malicious cron job and perform a full compromise assessment.' `
-                        -MITRE 'T1053.003'))
+                        -MITRE 'T1053.003' `
+                        -CVSSv3Score '9.8' `
+                        -TechnicalImpact "Reverse shell in a cron job provides the attacker with persistent remote command execution, automatically re-establishing access on a scheduled basis."))
                 }
                 break
             }
@@ -208,7 +212,9 @@ function Invoke-CronAnalyzer {
                     -ArtifactPath $source `
                     -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd", "Suspicious path: $susPath") `
                     -Recommendation 'Investigate the referenced file and the cron entry. Verify the purpose and legitimacy of the scheduled task.' `
-                    -MITRE 'T1053.003'))
+                    -MITRE 'T1053.003' `
+                    -CVSSv3Score '7.5' `
+                    -TechnicalImpact "Cron jobs executing from world-writable directories like /tmp or /dev/shm may allow an attacker to maintain persistent access or execute malicious payloads on a schedule."))
                 break
             }
         }
@@ -222,7 +228,9 @@ function Invoke-CronAnalyzer {
                 -ArtifactPath $source `
                 -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd") `
                 -Recommendation 'Decode the base64 content and analyze the underlying command. Remove if malicious.' `
-                -MITRE 'T1053.003'))
+                -MITRE 'T1053.003' `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact "Base64-encoded cron commands are commonly used to obfuscate malicious payloads, potentially hiding reverse shells, data exfiltration, or backdoor installation."))
         }
 
         # CRON-004: Download and execute
@@ -234,7 +242,9 @@ function Invoke-CronAnalyzer {
                 -ArtifactPath $source `
                 -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd") `
                 -Recommendation 'Identify the remote URL, analyze what is being downloaded, and remove the malicious cron entry.' `
-                -MITRE 'T1053.003'))
+                -MITRE 'T1053.003' `
+                -CVSSv3Score '8.8' `
+                -TechnicalImpact "Download-and-execute cron jobs allow an attacker to update malicious payloads remotely, enabling persistent and evolving command execution on the compromised system."))
         }
 
         # CRON-005: Root execution from user-writable directories
@@ -249,7 +259,9 @@ function Invoke-CronAnalyzer {
                         -ArtifactPath $source `
                         -Evidence @("Schedule: $($Entry.Schedule)", "User: $($Entry.User)", "Command: $cmd", "Writable path: $susPath") `
                         -Recommendation 'Move the script to a root-owned directory with restricted permissions, or remove the cron job if unnecessary.' `
-                        -MITRE 'T1053.003'))
+                        -MITRE 'T1053.003' `
+                        -CVSSv3Score '6.7' `
+                        -TechnicalImpact "Any local user can modify scripts in user-writable directories referenced by root cron jobs, enabling privilege escalation from any local user to root."))
                     break
                 }
             }
@@ -296,7 +308,9 @@ function Invoke-CronAnalyzer {
                             -ArtifactPath $resolvedScript `
                             -Evidence @("Cron source: $($Entry.SourceFile)", "Script: $scriptPath", "Matched pattern: $rsPattern") `
                             -Recommendation 'Examine the script and the cron entry. Remove malicious content and assess compromise scope.' `
-                            -MITRE 'T1053.003'))
+                            -MITRE 'T1053.003' `
+                            -CVSSv3Score '9.8' `
+                            -TechnicalImpact "Reverse shell in a cron-referenced script provides the attacker with persistent remote command execution, automatically re-establishing access on a scheduled basis."))
                         break
                     }
                 }
@@ -309,7 +323,9 @@ function Invoke-CronAnalyzer {
                         -ArtifactPath $resolvedScript `
                         -Evidence @("Cron source: $($Entry.SourceFile)", "Script: $scriptPath") `
                         -Recommendation 'Decode the base64 content and analyze the underlying commands.' `
-                        -MITRE 'T1053.003'))
+                        -MITRE 'T1053.003' `
+                        -CVSSv3Score '7.5' `
+                        -TechnicalImpact "Base64-encoded commands in cron-referenced scripts are commonly used to obfuscate malicious payloads, potentially hiding reverse shells or backdoor installation."))
                 }
 
                 if ($scriptText -match $downloadExecPattern) {
@@ -320,7 +336,9 @@ function Invoke-CronAnalyzer {
                         -ArtifactPath $resolvedScript `
                         -Evidence @("Cron source: $($Entry.SourceFile)", "Script: $scriptPath") `
                         -Recommendation 'Identify the remote URL and analyze what is being downloaded. Remove if malicious.' `
-                        -MITRE 'T1053.003'))
+                        -MITRE 'T1053.003' `
+                        -CVSSv3Score '8.8' `
+                        -TechnicalImpact "Download-and-execute patterns in cron-referenced scripts allow an attacker to remotely update malicious payloads, enabling persistent and evolving command execution."))
                 }
 
                 foreach ($susPath in $suspiciousPaths) {
@@ -332,7 +350,9 @@ function Invoke-CronAnalyzer {
                             -ArtifactPath $resolvedScript `
                             -Evidence @("Cron source: $($Entry.SourceFile)", "Script: $scriptPath", "Suspicious path: $susPath") `
                             -Recommendation 'Investigate the script and verify its legitimacy.' `
-                            -MITRE 'T1053.003'))
+                            -MITRE 'T1053.003' `
+                            -CVSSv3Score '7.5' `
+                            -TechnicalImpact "Cron-referenced scripts using world-writable directories may allow an attacker to maintain persistent access or execute malicious payloads on a schedule."))
                         break
                     }
                 }
@@ -441,7 +461,9 @@ function Invoke-CronAnalyzer {
         -Title 'Cron job analysis summary' `
         -Description "Analyzed $($analyzedFiles.Count) cron file(s) and found $($allCronJobs.Count) cron job(s)." `
         -Evidence $summaryEvidence `
-        -MITRE 'T1053.003'))
+        -MITRE 'T1053.003' `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     Write-Verbose "Cron analysis complete: $($findings.Count) finding(s) generated from $($allCronJobs.Count) cron job(s)."
 

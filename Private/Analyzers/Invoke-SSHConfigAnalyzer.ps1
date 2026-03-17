@@ -155,7 +155,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $permitRootLogin.Source })[0].Path) `
             -Evidence @($permitRootLogin.Line) `
             -Recommendation "Set PermitRootLogin to 'no' or 'prohibit-password'. Use regular accounts and sudo for privilege escalation." `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '9.8' `
+            -TechnicalImpact 'Allows unauthenticated remote code execution as root via SSH if credentials are compromised or brute-forced.'
         ))
     }
 
@@ -172,7 +174,9 @@ function Invoke-SSHConfigAnalyzer {
                     -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $mb.Source })[0].Path) `
                     -Evidence @("Match $($mb.Context)", $mb.Settings[$k].Line) `
                     -Recommendation "Set PermitRootLogin to 'no' or 'prohibit-password' even within Match blocks." `
-                    -MITRE $mitreSSH
+                    -MITRE $mitreSSH `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact 'Allows direct root login via SSH for matching conditions, enabling full system compromise if credentials are obtained.'
                 ))
             }
         }
@@ -192,7 +196,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $passwordAuth.Source })[0].Path) `
             -Evidence @($passwordAuth.Line) `
             -Recommendation 'Disable password authentication and use key-based authentication: PasswordAuthentication no' `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '7.5' `
+            -TechnicalImpact 'Password-based SSH authentication is susceptible to brute-force and credential stuffing attacks, potentially granting remote access.'
         ))
     }
 
@@ -210,7 +216,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $permitEmpty.Source })[0].Path) `
             -Evidence @($permitEmpty.Line) `
             -Recommendation "Set PermitEmptyPasswords to 'no'." `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '9.1' `
+            -TechnicalImpact 'Accounts with empty passwords can be accessed remotely via SSH without any credentials, enabling trivial unauthorized access.'
         ))
     }
 
@@ -228,7 +236,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $x11Forwarding.Source })[0].Path) `
             -Evidence @($x11Forwarding.Line) `
             -Recommendation 'Disable X11Forwarding unless explicitly required: X11Forwarding no' `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '4.3' `
+            -TechnicalImpact 'X11 forwarding can be exploited for display hijacking, keylogging, and screenshot capture of user sessions.'
         ))
     }
 
@@ -248,7 +258,9 @@ function Invoke-SSHConfigAnalyzer {
                 -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $protocol.Source })[0].Path) `
                 -Evidence @($protocol.Line) `
                 -Recommendation 'Use only Protocol 2: Protocol 2' `
-                -MITRE $mitreSSH
+                -MITRE $mitreSSH `
+                -CVSSv3Score '6.5' `
+                -TechnicalImpact 'SSHv1 has known cryptographic weaknesses that allow session hijacking and man-in-the-middle attacks.'
             ))
         }
     }
@@ -267,7 +279,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $port.Source })[0].Path) `
             -Evidence @($port.Line) `
             -Recommendation 'Verify this is an intentional configuration. Non-standard ports provide minimal security benefit but should be documented.' `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''
         ))
     }
 
@@ -288,7 +302,9 @@ function Invoke-SSHConfigAnalyzer {
                     -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $maxAuthTries.Source })[0].Path) `
                     -Evidence @($maxAuthTries.Line) `
                     -Recommendation 'Set MaxAuthTries to 3-6 to limit authentication attempts per connection.' `
-                    -MITRE $mitreSSH
+                    -MITRE $mitreSSH `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact 'High MaxAuthTries allows more brute-force password attempts per SSH connection, increasing the likelihood of credential compromise.'
                 ))
             }
         }
@@ -315,7 +331,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $agentForwarding.Source })[0].Path) `
             -Evidence @($evidence) `
             -Recommendation "Disable AllowAgentForwarding (set to 'no') or disable PermitRootLogin. Agent forwarding with root login allows SSH agent socket hijacking." `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '8.1' `
+            -TechnicalImpact 'An attacker with root access can hijack forwarded SSH agent sockets to authenticate to other systems, enabling lateral movement across the network.'
         ))
     }
 
@@ -338,7 +356,9 @@ function Invoke-SSHConfigAnalyzer {
             -ArtifactPath ($configFiles[0].Path) `
             -Evidence @($matchEvidence) `
             -Recommendation 'Review all Match blocks to ensure they do not weaken the global security posture.' `
-            -MITRE $mitreSSH
+            -MITRE $mitreSSH `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''
         ))
     }
 

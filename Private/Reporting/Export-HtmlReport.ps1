@@ -114,32 +114,85 @@ function Export-HtmlReport {
             $escapedId = [System.Net.WebUtility]::HtmlEncode($f.Id)
             $escapedCat = [System.Net.WebUtility]::HtmlEncode($f.Category)
             $escapedMitre = [System.Net.WebUtility]::HtmlEncode($f.MITRE)
+            $escapedCvss = [System.Net.WebUtility]::HtmlEncode($f.CVSSv3Score)
+            $escapedImpact = [System.Net.WebUtility]::HtmlEncode($f.TechnicalImpact)
 
+            # CVSSv3 display with color coding
+            $cvssDisplay = 'N/A'
+            $cvssClass = 'cvss-na'
+            if (-not [string]::IsNullOrWhiteSpace($f.CVSSv3Score)) {
+                $cvssDisplay = $escapedCvss
+                $cvssNum = 0.0
+                if ([double]::TryParse(($f.CVSSv3Score -replace '[^0-9.]',''), [ref]$cvssNum)) {
+                    if ($cvssNum -ge 9.0) { $cvssClass = 'cvss-critical' }
+                    elseif ($cvssNum -ge 7.0) { $cvssClass = 'cvss-high' }
+                    elseif ($cvssNum -ge 4.0) { $cvssClass = 'cvss-medium' }
+                    else { $cvssClass = 'cvss-low' }
+                }
+            }
+
+            # Evidence section
             $evidenceHtml = ''
             if ($f.Evidence -and $f.Evidence.Count -gt 0) {
                 $escapedEvidence = ($f.Evidence | ForEach-Object { [System.Net.WebUtility]::HtmlEncode($_) }) -join "`n"
-                $evidenceHtml = "<div class=`"detail-section`"><strong>Evidence:</strong><pre class=`"evidence-block`">${escapedEvidence}</pre></div>"
+                $evidenceHtml = "<div class=`"detail-section`"><strong>Related Evidence:</strong><pre class=`"evidence-block`">${escapedEvidence}</pre></div>"
             }
 
+            # Artifact path as related file
+            $artifactHtml = ''
+            if (-not [string]::IsNullOrWhiteSpace($f.ArtifactPath)) {
+                $escapedArtifact = [System.Net.WebUtility]::HtmlEncode($f.ArtifactPath)
+                $artifactHtml = "<div class=`"detail-section`"><strong>Source File:</strong> <code class=`"file-path`">${escapedArtifact}</code></div>"
+            }
+
+            # MITRE tag
             $mitreHtml = ''
             if (-not [string]::IsNullOrWhiteSpace($f.MITRE)) {
                 $mitreHtml = "<div class=`"detail-section`"><strong>MITRE ATT&amp;CK:</strong> <span class=`"mitre-tag`">${escapedMitre}</span></div>"
             }
 
+            # Technical Impact
+            $impactHtml = ''
+            if (-not [string]::IsNullOrWhiteSpace($f.TechnicalImpact)) {
+                $impactHtml = "<div class=`"detail-section`"><strong>Technical Impact:</strong> ${escapedImpact}</div>"
+            }
+
+            # Suggested Mitigation
+            $mitigationHtml = ''
+            if (-not [string]::IsNullOrWhiteSpace($f.Recommendation)) {
+                $mitigationHtml = "<div class=`"detail-section`"><strong>Suggested Mitigation:</strong> ${escapedRec}</div>"
+            }
+
+            # Table row (summary)
             [void]$findingsRows.AppendLine("            <tr class=`"finding-row`" onclick=`"toggleDetail('detail-${rowIndex}')`">")
             [void]$findingsRows.AppendLine("                <td>${escapedId}</td>")
             [void]$findingsRows.AppendLine("                <td><span class=`"severity-badge`" style=`"background:${color};`">$($f.Severity)</span></td>")
+            [void]$findingsRows.AppendLine("                <td><span class=`"${cvssClass}`">${cvssDisplay}</span></td>")
             [void]$findingsRows.AppendLine("                <td>${escapedCat}</td>")
             [void]$findingsRows.AppendLine("                <td>${escapedTitle}</td>")
             [void]$findingsRows.AppendLine("            </tr>")
+
+            # Detail row (expanded)
             [void]$findingsRows.AppendLine("            <tr class=`"detail-row`" id=`"detail-${rowIndex}`">")
-            [void]$findingsRows.AppendLine("                <td colspan=`"4`">")
-            [void]$findingsRows.AppendLine("                    <div class=`"detail-section`"><strong>Description:</strong> ${escapedDesc}</div>")
-            [void]$findingsRows.AppendLine("                    ${evidenceHtml}")
-            if (-not [string]::IsNullOrWhiteSpace($f.Recommendation)) {
-                [void]$findingsRows.AppendLine("                    <div class=`"detail-section`"><strong>Recommendation:</strong> ${escapedRec}</div>")
+            [void]$findingsRows.AppendLine("                <td colspan=`"5`">")
+            [void]$findingsRows.AppendLine("                    <div class=`"detail-grid`">")
+            [void]$findingsRows.AppendLine("                        <div class=`"detail-main`">")
+            [void]$findingsRows.AppendLine("                            <div class=`"detail-section`"><strong>Description:</strong> ${escapedDesc}</div>")
+            [void]$findingsRows.AppendLine("                            ${impactHtml}")
+            [void]$findingsRows.AppendLine("                            ${mitigationHtml}")
+            [void]$findingsRows.AppendLine("                            ${evidenceHtml}")
+            [void]$findingsRows.AppendLine("                        </div>")
+            [void]$findingsRows.AppendLine("                        <div class=`"detail-sidebar`">")
+            [void]$findingsRows.AppendLine("                            ${artifactHtml}")
+            [void]$findingsRows.AppendLine("                            ${mitreHtml}")
+
+            # CVSSv3 in sidebar if present
+            if (-not [string]::IsNullOrWhiteSpace($f.CVSSv3Score)) {
+                [void]$findingsRows.AppendLine("                            <div class=`"detail-section`"><strong>CVSSv3 Score:</strong> <span class=`"${cvssClass}`">${cvssDisplay}</span></div>")
             }
-            [void]$findingsRows.AppendLine("                    ${mitreHtml}")
+
+            [void]$findingsRows.AppendLine("                        </div>")
+            [void]$findingsRows.AppendLine("                    </div>")
             [void]$findingsRows.AppendLine("                </td>")
             [void]$findingsRows.AppendLine("            </tr>")
         }
@@ -263,6 +316,19 @@ $($metaEntries.ToString())
             display: inline-block; background: #2a2a4a; padding: 2px 8px;
             border-radius: 4px; font-size: 0.85em; color: #7ec8e3;
         }
+        .file-path {
+            background: #0a0f1f; border: 1px solid #2a2a4a; border-radius: 3px;
+            padding: 2px 6px; font-family: 'Consolas', 'Courier New', monospace;
+            font-size: 0.85em; color: #b0c4de;
+        }
+        .detail-grid { display: flex; gap: 20px; }
+        .detail-main { flex: 3; }
+        .detail-sidebar { flex: 1; min-width: 180px; border-left: 1px solid #2a2a4a; padding-left: 16px; }
+        .cvss-critical { color: #e74c3c; font-weight: 700; }
+        .cvss-high { color: #c0392b; font-weight: 700; }
+        .cvss-medium { color: #f39c12; font-weight: 600; }
+        .cvss-low { color: #00bcd4; font-weight: 600; }
+        .cvss-na { color: #666; font-style: italic; }
 
         /* Timeline */
         .timeline-table td { font-size: 0.9em; }
@@ -305,8 +371,9 @@ $($chartBars.ToString())
                     <tr>
                         <th onclick="sortTable(0)">ID</th>
                         <th onclick="sortTable(1)">Severity</th>
-                        <th onclick="sortTable(2)">Category</th>
-                        <th onclick="sortTable(3)">Title</th>
+                        <th onclick="sortTable(2)">CVSSv3</th>
+                        <th onclick="sortTable(3)">Category</th>
+                        <th onclick="sortTable(4)">Title</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -362,6 +429,11 @@ ${metadataHtml}
                     aVal = sevOrder[aVal] !== undefined ? sevOrder[aVal] : 99;
                     bVal = sevOrder[bVal] !== undefined ? sevOrder[bVal] : 99;
                     return ascending ? aVal - bVal : bVal - aVal;
+                }
+                if (colIndex === 2) {
+                    var aNum = parseFloat(aVal) || 0;
+                    var bNum = parseFloat(bVal) || 0;
+                    return ascending ? aNum - bNum : bNum - aNum;
                 }
                 return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
             });

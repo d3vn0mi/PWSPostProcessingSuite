@@ -33,7 +33,9 @@ function Invoke-ContainerAnalyzer {
             -Description "Evidence indicates this system is a containerized environment (Docker/LXC/Kubernetes)." `
             -ArtifactPath "/.dockerenv" `
             -Evidence @("Container environment detected") `
-            -Recommendation "Review container security configuration and escape vectors"))
+            -Recommendation "Review container security configuration and escape vectors" `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''))
     }
 
     # Check Docker socket access
@@ -45,7 +47,9 @@ function Invoke-ContainerAnalyzer {
             -ArtifactPath "/var/run/docker.sock" `
             -Evidence @("Docker socket exists and is accessible") `
             -Recommendation "Do not mount the Docker socket into containers. Use Docker's rootless mode." `
-            -MITRE "T1611"))
+            -MITRE "T1611" `
+            -CVSSv3Score "9.9" `
+            -TechnicalImpact "Accessible Docker socket allows full container escape by spawning privileged containers, granting root-level access to the host system."))
     }
 
     # Check Docker daemon configuration
@@ -64,7 +68,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $configPath `
                 -Evidence @(($content | Select-String 'insecure-registries' -Context 0,3).Line) `
                 -Recommendation "Use TLS for all container registries" `
-                -MITRE "T1525"))
+                -MITRE "T1525" `
+                -CVSSv3Score "5.9" `
+                -TechnicalImpact "Insecure registries allow man-in-the-middle attacks to inject malicious container images, potentially compromising all services deployed from the registry."))
         }
 
         # Check for exposed Docker API
@@ -75,7 +81,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $configPath `
                 -Evidence @(($content | Select-String 'hosts|tcp://' -Context 0,1).Line) `
                 -Recommendation "Remove TCP host binding. Use Docker socket or TLS-authenticated API only." `
-                -MITRE "T1610"))
+                -MITRE "T1610" `
+                -CVSSv3Score "9.8" `
+                -TechnicalImpact "Unauthenticated Docker API exposure allows remote attackers to create, modify, and execute containers with full host access, leading to complete system compromise."))
         }
     }
 
@@ -95,7 +103,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $composeFile.FullName `
                 -Evidence @(($content -split "`n" | Select-String 'privileged' -Context 2,0).Line) `
                 -Recommendation "Remove privileged mode. Use specific capabilities instead." `
-                -MITRE "T1611"))
+                -MITRE "T1611" `
+                -CVSSv3Score "9.0" `
+                -TechnicalImpact "Privileged containers have unrestricted access to host devices and kernel capabilities, enabling trivial container escape and full host compromise."))
         }
 
         # Check for host network mode
@@ -106,7 +116,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $composeFile.FullName `
                 -Evidence @("network_mode: host") `
                 -Recommendation "Use bridge or overlay networking instead of host mode" `
-                -MITRE "T1611"))
+                -MITRE "T1611" `
+                -CVSSv3Score "7.5" `
+                -TechnicalImpact "Host network mode exposes all host network interfaces to the container, enabling network-based attacks on host services and other containers."))
         }
 
         # Check for host PID namespace
@@ -117,7 +129,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $composeFile.FullName `
                 -Evidence @("pid: host") `
                 -Recommendation "Remove host PID namespace sharing" `
-                -MITRE "T1611"))
+                -MITRE "T1611" `
+                -CVSSv3Score "7.5" `
+                -TechnicalImpact "Host PID namespace sharing allows the container to view and interact with all host processes, enabling process injection and sensitive data extraction from host memory."))
         }
 
         # Check for cap_add: SYS_ADMIN
@@ -128,7 +142,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $composeFile.FullName `
                 -Evidence @(($content -split "`n" | Select-String 'SYS_ADMIN|SYS_PTRACE|NET_ADMIN' -Context 1,0).Line) `
                 -Recommendation "Remove unnecessary capabilities. Apply principle of least privilege." `
-                -MITRE "T1611"))
+                -MITRE "T1611" `
+                -CVSSv3Score "8.2" `
+                -TechnicalImpact "Dangerous Linux capabilities such as SYS_ADMIN or SYS_PTRACE can be exploited to escape the container, mount host filesystems, or inject code into host processes."))
         }
 
         # Check for Docker socket mount
@@ -139,7 +155,9 @@ function Invoke-ContainerAnalyzer {
                 -ArtifactPath $composeFile.FullName `
                 -Evidence @("Volume: /var/run/docker.sock") `
                 -Recommendation "Remove Docker socket mount. Use Docker API proxy with restricted permissions." `
-                -MITRE "T1611"))
+                -MITRE "T1611" `
+                -CVSSv3Score "9.9" `
+                -TechnicalImpact "Docker socket mount inside a container provides full control over the Docker daemon, enabling container escape and root-level access to the host."))
         }
     }
 

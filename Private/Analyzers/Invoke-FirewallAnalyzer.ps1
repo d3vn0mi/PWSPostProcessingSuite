@@ -43,7 +43,9 @@ function Invoke-FirewallAnalyzer {
                         -ArtifactPath $rulePath `
                         -Evidence @($trimmed) `
                         -Recommendation "Set default INPUT policy to DROP and explicitly allow needed traffic" `
-                        -MITRE "T1562.004"))
+                        -MITRE "T1562.004" `
+                        -CVSSv3Score '7.5' `
+                        -TechnicalImpact "Allows unrestricted inbound network access to all services, exposing the system to remote exploitation of any listening service"))
                 }
                 else {
                     $hasDropPolicy = $true
@@ -57,7 +59,9 @@ function Invoke-FirewallAnalyzer {
                     -ArtifactPath $rulePath `
                     -Evidence @($trimmed) `
                     -Recommendation "Set default FORWARD policy to DROP unless this is a router/gateway" `
-                    -MITRE "T1090"))
+                    -MITRE "T1090" `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact "Enables the system to be used as a network pivot point, allowing lateral movement between network segments"))
             }
 
             # Check for overly permissive rules
@@ -75,7 +79,9 @@ function Invoke-FirewallAnalyzer {
                         -ArtifactPath $rulePath `
                         -Evidence @($trimmed) `
                         -Recommendation "Investigate why port $port is allowed and remove if not needed" `
-                        -MITRE "T1571"))
+                        -MITRE "T1571" `
+                        -CVSSv3Score '8.1' `
+                        -TechnicalImpact "Firewall rule permits traffic on a port commonly used by reverse shells or C2 frameworks, potentially enabling remote attacker access"))
                 }
             }
         }
@@ -87,7 +93,9 @@ function Invoke-FirewallAnalyzer {
                 -ArtifactPath $rulePath `
                 -Evidence @($acceptAll | Select-Object -First 5) `
                 -Recommendation "Restrict firewall rules to specific ports and source addresses" `
-                -MITRE "T1562.004"))
+                -MITRE "T1562.004" `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact "Overly broad firewall rules reduce network segmentation effectiveness, increasing attack surface for remote exploitation"))
         }
     }
 
@@ -104,7 +112,9 @@ function Invoke-FirewallAnalyzer {
                 -ArtifactPath "/etc/ufw/ufw.conf" `
                 -Evidence @("ENABLED=no") `
                 -Recommendation "Enable UFW: ufw enable" `
-                -MITRE "T1562.004"))
+                -MITRE "T1562.004" `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact "Host-based firewall is disabled, leaving all network services exposed to unrestricted remote access"))
         }
     }
 
@@ -115,7 +125,9 @@ function Invoke-FirewallAnalyzer {
             -ArtifactPath "" `
             -Evidence @("No firewall config found in standard locations") `
             -Recommendation "Configure a host-based firewall (iptables/nftables/ufw)" `
-            -MITRE "T1562.004"))
+            -MITRE "T1562.004" `
+            -CVSSv3Score '7.5' `
+            -TechnicalImpact "Absence of host-based firewall leaves all network services exposed, allowing unrestricted remote access to any listening port"))
     }
 
     return $findings.ToArray()

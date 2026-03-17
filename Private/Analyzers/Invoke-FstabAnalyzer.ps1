@@ -50,7 +50,9 @@ function Invoke-FstabAnalyzer {
                 -ArtifactPath "/etc/fstab" `
                 -Evidence @("$($mount.Device) $mp $($mount.FsType) $($mount.Options)") `
                 -Recommendation "Add noexec option to $mp mount in /etc/fstab" `
-                -MITRE "T1059"))
+                -MITRE "T1059" `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact "Allows execution of attacker-placed binaries or scripts from the temporary directory, facilitating malware execution and privilege escalation"))
         }
         if ('nosuid' -notin $options) {
             $findings.Add((New-Finding -Id "FSTAB-002" -Severity "Medium" -Category "Filesystem Security" `
@@ -59,7 +61,9 @@ function Invoke-FstabAnalyzer {
                 -ArtifactPath "/etc/fstab" `
                 -Evidence @("$($mount.Device) $mp $($mount.FsType) $($mount.Options)") `
                 -Recommendation "Add nosuid option to $mp mount in /etc/fstab" `
-                -MITRE "T1548.001"))
+                -MITRE "T1548.001" `
+                -CVSSv3Score '6.7' `
+                -TechnicalImpact "Enables privilege escalation by allowing SUID binaries placed in the temporary directory to execute with elevated permissions"))
         }
         if ('nodev' -notin $options) {
             $findings.Add((New-Finding -Id "FSTAB-003" -Severity "Low" -Category "Filesystem Security" `
@@ -68,7 +72,9 @@ function Invoke-FstabAnalyzer {
                 -ArtifactPath "/etc/fstab" `
                 -Evidence @("$($mount.Device) $mp $($mount.FsType) $($mount.Options)") `
                 -Recommendation "Add nodev option to $mp mount in /etc/fstab" `
-                -MITRE "T1068"))
+                -MITRE "T1068" `
+                -CVSSv3Score '3.1' `
+                -TechnicalImpact "Allows creation of device files in the temporary directory, which could be used for device-level exploits"))
         }
     }
 
@@ -81,7 +87,9 @@ function Invoke-FstabAnalyzer {
             -ArtifactPath "/etc/fstab" `
             -Evidence @("No /tmp entry found in fstab") `
             -Recommendation "Create a separate partition or tmpfs mount for /tmp with noexec,nosuid,nodev options" `
-            -MITRE "T1059"))
+            -MITRE "T1059" `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact "Prevents mount-level security controls on /tmp, allowing attackers to execute binaries and use SUID from the temporary directory"))
     }
 
     # Check /home mount options
@@ -95,7 +103,9 @@ function Invoke-FstabAnalyzer {
                 -ArtifactPath "/etc/fstab" `
                 -Evidence @("$($mount.Device) /home $($mount.FsType) $($mount.Options)") `
                 -Recommendation "Add nosuid option to /home mount" `
-                -MITRE "T1548.001"))
+                -MITRE "T1548.001" `
+                -CVSSv3Score '3.1' `
+                -TechnicalImpact "Allows SUID binaries in user home directories to execute with elevated permissions, potentially enabling local privilege escalation"))
         }
     }
 
@@ -105,7 +115,9 @@ function Invoke-FstabAnalyzer {
         -Description "Found $($mountEntries.Count) mount entries in /etc/fstab." `
         -ArtifactPath "/etc/fstab" `
         -Evidence @($mountEntries | ForEach-Object { "$($_.MountPoint) ($($_.FsType)) opts=$($_.Options)" }) `
-        -Recommendation "Review mount options against CIS benchmarks"))
+        -Recommendation "Review mount options against CIS benchmarks" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }

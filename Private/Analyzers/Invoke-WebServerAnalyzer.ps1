@@ -38,7 +38,9 @@ function Invoke-WebServerAnalyzer {
                     -ArtifactPath "$($loc.Path)/$fileName" `
                     -Evidence @(($lines | Where-Object { $_ -match 'autoindex\s+on' }) | Select-Object -First 3) `
                     -Recommendation "Disable autoindex unless explicitly needed" `
-                    -MITRE "T1083"))
+                    -MITRE "T1083" `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact 'Exposes directory contents to unauthenticated users, potentially revealing sensitive files, backup data, or application internals.'))
             }
 
             if ($serverType -eq 'apache' -and $content -match 'Options.*Indexes') {
@@ -48,7 +50,9 @@ function Invoke-WebServerAnalyzer {
                     -ArtifactPath "$($loc.Path)/$fileName" `
                     -Evidence @(($lines | Where-Object { $_ -match 'Options.*Indexes' }) | Select-Object -First 3) `
                     -Recommendation "Remove 'Indexes' from Options directive" `
-                    -MITRE "T1083"))
+                    -MITRE "T1083" `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact 'Exposes directory contents to unauthenticated users, potentially revealing sensitive files, backup data, or application internals.'))
             }
 
             # Check for server tokens (version disclosure)
@@ -59,7 +63,9 @@ function Invoke-WebServerAnalyzer {
                     -ArtifactPath "$($loc.Path)/$fileName" `
                     -Evidence @("server_tokens not set to off") `
                     -Recommendation "Add 'server_tokens off;' to nginx.conf" `
-                    -MITRE "T1592"))
+                    -MITRE "T1592" `
+                    -CVSSv3Score '3.1' `
+                    -TechnicalImpact 'Discloses web server version information that aids attackers in identifying known vulnerabilities for targeted exploitation.'))
             }
 
             if ($serverType -eq 'apache' -and $content -notmatch 'ServerTokens\s+Prod') {
@@ -70,7 +76,9 @@ function Invoke-WebServerAnalyzer {
                         -ArtifactPath "$($loc.Path)/$fileName" `
                         -Evidence @(($lines | Where-Object { $_ -match 'ServerTokens' }) | Select-Object -First 1) `
                         -Recommendation "Set 'ServerTokens Prod' in Apache config" `
-                        -MITRE "T1592"))
+                        -MITRE "T1592" `
+                        -CVSSv3Score '3.1' `
+                        -TechnicalImpact 'Discloses web server version information that aids attackers in identifying known vulnerabilities for targeted exploitation.'))
                 }
             }
 
@@ -82,7 +90,9 @@ function Invoke-WebServerAnalyzer {
                     -ArtifactPath "$($loc.Path)/$fileName" `
                     -Evidence @(($lines | Where-Object { $_ -match 'SSLv[23]' }) | Select-Object -First 3) `
                     -Recommendation "Disable SSLv2 and SSLv3. Use TLSv1.2+ only." `
-                    -MITRE "T1557"))
+                    -MITRE "T1557" `
+                    -CVSSv3Score '7.4' `
+                    -TechnicalImpact 'Enables man-in-the-middle attacks via known SSL/TLS protocol vulnerabilities (POODLE, DROWN), allowing interception of encrypted traffic.'))
             }
 
             # Check for missing security headers
@@ -98,7 +108,9 @@ function Invoke-WebServerAnalyzer {
                     -ArtifactPath "$($loc.Path)/$fileName" `
                     -Evidence @($missingHeaders | ForEach-Object { "Missing: $_" }) `
                     -Recommendation "Add security headers: $($missingHeaders -join ', ')" `
-                    -MITRE "T1190"))
+                    -MITRE "T1190" `
+                    -CVSSv3Score '3.1' `
+                    -TechnicalImpact 'Missing security headers increase exposure to client-side attacks such as clickjacking, XSS, and MIME-type confusion.'))
             }
         }
     }

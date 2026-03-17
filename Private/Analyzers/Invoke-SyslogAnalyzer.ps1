@@ -72,7 +72,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/syslog" `
             -Evidence @($segfaults | Select-Object -First 10) `
             -Recommendation "Investigate the processes causing segfaults for exploitation indicators" `
-            -MITRE "T1203"))
+            -MITRE "T1203" `
+            -CVSSv3Score '7.5' `
+            -TechnicalImpact 'Repeated segfaults may indicate active exploitation attempts that could lead to arbitrary code execution or denial of service.'))
     }
     elseif ($segfaults.Count -gt 0) {
         $findings.Add((New-Finding -Id "SYSLOG-001" -Severity "Medium" -Category "System Events" `
@@ -81,7 +83,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/syslog" `
             -Evidence @($segfaults | Select-Object -First 5) `
             -Recommendation "Review segfaulting processes" `
-            -MITRE "T1203"))
+            -MITRE "T1203" `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'Segfaults may indicate exploitation attempts or unstable software that could be leveraged for code execution.'))
     }
 
     # OOM kills
@@ -92,7 +96,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/syslog" `
             -Evidence @($oomKills | Select-Object -First 5) `
             -Recommendation "Investigate what processes consumed excessive memory" `
-            -MITRE "T1496"))
+            -MITRE "T1496" `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'Memory exhaustion may indicate resource hijacking for cryptomining or denial-of-service attack against system availability.'))
     }
 
     # Kernel panics
@@ -103,7 +109,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/kern.log" `
             -Evidence @($kernelPanics | Select-Object -First 5) `
             -Recommendation "Investigate kernel panics for signs of exploitation" `
-            -MITRE "T1068"))
+            -MITRE "T1068" `
+            -CVSSv3Score '7.5' `
+            -TechnicalImpact 'Kernel panics may indicate kernel exploitation attempts that could lead to full system compromise or persistent denial of service.'))
     }
 
     # Promiscuous mode
@@ -114,7 +122,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/syslog" `
             -Evidence @($promiscMode | Select-Object -First 5) `
             -Recommendation "Identify what put the interface in promiscuous mode. Check for tcpdump, wireshark, or other sniffers." `
-            -MITRE "T1040"))
+            -MITRE "T1040" `
+            -CVSSv3Score '7.5' `
+            -TechnicalImpact 'Enables network traffic sniffing to capture credentials, session tokens, and sensitive data transmitted on the local network segment.'))
     }
 
     # USB events
@@ -125,7 +135,9 @@ function Invoke-SyslogAnalyzer {
             -ArtifactPath "/var/log/syslog" `
             -Evidence @($usbEvents | Select-Object -First 10) `
             -Recommendation "Review USB device connections for unauthorized data exfiltration" `
-            -MITRE "T1052.001"))
+            -MITRE "T1052.001" `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''))
     }
 
     # Summary
@@ -134,7 +146,9 @@ function Invoke-SyslogAnalyzer {
         -Description "Analyzed $($allLines.Count) log lines. Found: $($segfaults.Count) segfaults, $($oomKills.Count) OOM kills, $($kernelPanics.Count) panics, $($promiscMode.Count) promiscuous mode events." `
         -ArtifactPath "/var/log/" `
         -Evidence @("Total lines: $($allLines.Count)") `
-        -Recommendation "Review complete system logs for additional context"))
+        -Recommendation "Review complete system logs for additional context" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }

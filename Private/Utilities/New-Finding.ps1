@@ -30,21 +30,27 @@ function New-Finding {
 
         [Nullable[datetime]]$Timestamp,
 
-        [string]$MITRE = ''
+        [string]$MITRE = '',
+
+        [string]$CVSSv3Score = '',
+
+        [string]$TechnicalImpact = ''
     )
 
     $finding = [PSCustomObject]@{
-        PSTypeName     = 'PWSPostProcessingSuite.Finding'
-        Id             = $Id
-        Severity       = $Severity
-        Category       = $Category
-        Title          = $Title
-        Description    = $Description
-        ArtifactPath   = $ArtifactPath
-        Evidence       = $Evidence
-        Recommendation = $Recommendation
-        Timestamp      = $Timestamp
-        MITRE          = $MITRE
+        PSTypeName      = 'PWSPostProcessingSuite.Finding'
+        Id              = $Id
+        Severity        = $Severity
+        Category        = $Category
+        Title           = $Title
+        Description     = $Description
+        ArtifactPath    = $ArtifactPath
+        Evidence        = $Evidence
+        Recommendation  = $Recommendation
+        Timestamp       = $Timestamp
+        MITRE           = $MITRE
+        CVSSv3Score     = $CVSSv3Score
+        TechnicalImpact = $TechnicalImpact
     }
 
     return $finding
