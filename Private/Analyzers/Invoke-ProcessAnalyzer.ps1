@@ -43,7 +43,9 @@ function Invoke-ProcessAnalyzer {
                         -ArtifactPath $pFile.Name `
                         -Evidence @($trimmed) `
                         -Recommendation "Investigate the process and binary in the temporary directory" `
-                        -MITRE "T1059"))
+                        -MITRE "T1059" `
+                        -CVSSv3Score "7.8" `
+                        -TechnicalImpact "Processes running from world-writable directories indicate possible malware execution or attacker-staged binaries."))
                     break
                 }
             }
@@ -56,7 +58,9 @@ function Invoke-ProcessAnalyzer {
                     -ArtifactPath $pFile.Name `
                     -Evidence @($trimmed) `
                     -Recommendation "Capture the process memory and investigate. The binary can be recovered from /proc/[pid]/exe" `
-                    -MITRE "T1070.004"))
+                    -MITRE "T1070.004" `
+                    -CVSSv3Score "9.8" `
+                    -TechnicalImpact "Indicates active malware or attacker tool execution with evidence destruction, suggesting full system compromise."))
             }
 
             # Check for crypto mining indicators
@@ -68,7 +72,9 @@ function Invoke-ProcessAnalyzer {
                         -ArtifactPath $pFile.Name `
                         -Evidence @($trimmed) `
                         -Recommendation "Kill the mining process and investigate how it was deployed" `
-                        -MITRE "T1496"))
+                        -MITRE "T1496" `
+                        -CVSSv3Score "9.1" `
+                        -TechnicalImpact "System is actively compromised and being used for unauthorized cryptocurrency mining, consuming resources and indicating full attacker control."))
                     break
                 }
             }
@@ -82,7 +88,9 @@ function Invoke-ProcessAnalyzer {
                     -ArtifactPath $pFile.Name `
                     -Evidence @($trimmed) `
                     -Recommendation "Immediately investigate this connection and identify the remote endpoint" `
-                    -MITRE "T1059.004"))
+                    -MITRE "T1059.004" `
+                    -CVSSv3Score "9.8" `
+                    -TechnicalImpact "Active reverse shell provides attacker with interactive remote command execution, indicating full system compromise."))
             }
         }
     }
@@ -101,7 +109,9 @@ function Invoke-ProcessAnalyzer {
                         -ArtifactPath $lsFile.Name `
                         -Evidence @($line.Trim()) `
                         -Recommendation "Investigate the process holding the deleted file" `
-                        -MITRE "T1070.004"))
+                        -MITRE "T1070.004" `
+                        -CVSSv3Score "7.8" `
+                        -TechnicalImpact "Attacker is actively running code from deleted files to evade detection, indicating anti-forensic techniques and likely system compromise."))
                 }
             }
         }
@@ -133,7 +143,9 @@ function Invoke-ProcessAnalyzer {
                         -ArtifactPath $netFile.Name `
                         -Evidence @($line.Trim()) `
                         -Recommendation "Investigate the process and remote endpoint" `
-                        -MITRE "T1571"))
+                        -MITRE "T1571" `
+                        -CVSSv3Score "8.1" `
+                        -TechnicalImpact "Active network connection on a known malicious port suggests command-and-control communication or active reverse shell."))
                     break
                 }
             }

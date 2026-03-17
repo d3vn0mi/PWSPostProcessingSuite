@@ -38,7 +38,9 @@ function Invoke-PAMAnalyzer {
                         -ArtifactPath "/etc/pam.d/$fileName" `
                         -Evidence @("Line ${lineNum}: $trimmed") `
                         -Recommendation "Replace pam_permit.so with proper authentication modules (pam_unix, pam_deny)" `
-                        -MITRE "T1556.003"))
+                        -MITRE "T1556.003" `
+                        -CVSSv3Score "8.6" `
+                        -TechnicalImpact "Allows any user to authenticate without a password, enabling unauthorized access to the system or privilege escalation."))
                 }
             }
 
@@ -50,7 +52,9 @@ function Invoke-PAMAnalyzer {
                     -ArtifactPath "/etc/pam.d/$fileName" `
                     -Evidence @("Line ${lineNum}: $trimmed") `
                     -Recommendation "Verify the command executed by pam_exec.so is legitimate and expected" `
-                    -MITRE "T1556.003"))
+                    -MITRE "T1556.003" `
+                    -CVSSv3Score "8.4" `
+                    -TechnicalImpact "Allows execution of arbitrary commands during authentication, enabling credential harvesting, backdoor access, or persistent code execution."))
             }
 
             # Check for missing account lockout (no pam_faillock or pam_tally)
@@ -68,7 +72,9 @@ function Invoke-PAMAnalyzer {
                     -ArtifactPath "/etc/pam.d/$fileName" `
                     -Evidence @("Line ${lineNum}: $trimmed") `
                     -Recommendation "Ensure pam_rootok is only used in appropriate services (su, sudo)" `
-                    -MITRE "T1548.003"))
+                    -MITRE "T1548.003" `
+                    -CVSSv3Score "6.7" `
+                    -TechnicalImpact "Root can bypass authentication checks for this service, which may be exploited if root access is partially compromised or misconfigured."))
             }
 
             # Check for nullok (allows empty passwords)
@@ -79,7 +85,9 @@ function Invoke-PAMAnalyzer {
                     -ArtifactPath "/etc/pam.d/$fileName" `
                     -Evidence @("Line ${lineNum}: $trimmed") `
                     -Recommendation "Remove 'nullok' option to prevent empty password authentication" `
-                    -MITRE "T1078"))
+                    -MITRE "T1078" `
+                    -CVSSv3Score "6.5" `
+                    -TechnicalImpact "Accounts with empty passwords can authenticate, enabling unauthorized access without any credential knowledge."))
             }
         }
     }
@@ -95,7 +103,9 @@ function Invoke-PAMAnalyzer {
                 -ArtifactPath "/etc/pam.d/$($authFile.Name)" `
                 -Evidence @("No pam_faillock or pam_tally module found") `
                 -Recommendation "Configure pam_faillock to lock accounts after repeated failed login attempts" `
-                -MITRE "T1110"))
+                -MITRE "T1110" `
+                -CVSSv3Score "5.3" `
+                -TechnicalImpact "Without account lockout, attackers can perform unlimited brute-force password attempts against user accounts."))
         }
     }
 
@@ -105,7 +115,9 @@ function Invoke-PAMAnalyzer {
         -Description "Found $($pamFiles.Count) PAM configuration files in /etc/pam.d/." `
         -ArtifactPath "/etc/pam.d/" `
         -Evidence @($pamFiles | ForEach-Object { $_.Name }) `
-        -Recommendation "Review PAM configuration for compliance with organizational policy"))
+        -Recommendation "Review PAM configuration for compliance with organizational policy" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }

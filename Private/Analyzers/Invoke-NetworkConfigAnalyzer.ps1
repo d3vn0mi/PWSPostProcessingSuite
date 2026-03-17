@@ -44,7 +44,9 @@ function Invoke-NetworkConfigAnalyzer {
                         -ArtifactPath "/etc/hosts" `
                         -Evidence @($trimmed) `
                         -Recommendation "Remove the hosts file entry blocking security domains" `
-                        -MITRE "T1562.001"))
+                        -MITRE "T1562.001" `
+                        -CVSSv3Score "7.5" `
+                        -TechnicalImpact "Prevents security software updates, leaving the system vulnerable to known exploits and unpatched vulnerabilities."))
                 }
             }
         }
@@ -56,7 +58,9 @@ function Invoke-NetworkConfigAnalyzer {
                 -ArtifactPath "/etc/hosts" `
                 -Evidence $suspiciousHosts `
                 -Recommendation "Review and remove unauthorized hosts file entries" `
-                -MITRE "T1565.001"))
+                -MITRE "T1565.001" `
+                -CVSSv3Score "8.1" `
+                -TechnicalImpact "Allows attacker to redirect traffic for well-known domains to malicious servers, enabling credential theft or malware delivery."))
         }
     }
 
@@ -84,7 +88,9 @@ function Invoke-NetworkConfigAnalyzer {
                 -ArtifactPath "/etc/resolv.conf" `
                 -Evidence @($unknownDNS | ForEach-Object { "nameserver $_" }) `
                 -Recommendation "Verify DNS nameservers are legitimate and authorized" `
-                -MITRE "T1584.002"))
+                -MITRE "T1584.002" `
+                -CVSSv3Score "5.3" `
+                -TechnicalImpact "Rogue DNS servers can redirect traffic, intercept credentials, and deliver malware by resolving domains to attacker-controlled IPs."))
         }
 
         $findings.Add((New-Finding -Id "NET-INFO-DNS" -Severity "Informational" -Category "Network" `
@@ -92,7 +98,9 @@ function Invoke-NetworkConfigAnalyzer {
             -Description "System configured with $($nameservers.Count) nameservers." `
             -ArtifactPath "/etc/resolv.conf" `
             -Evidence @($nameservers | ForEach-Object { "nameserver $_" }) `
-            -Recommendation "Ensure DNS servers are trusted"))
+            -Recommendation "Ensure DNS servers are trusted" `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''))
     }
 
     # Analyze /etc/hosts.allow and /etc/hosts.deny (TCP wrappers)
@@ -109,7 +117,9 @@ function Invoke-NetworkConfigAnalyzer {
                 -ArtifactPath "/etc/hosts.deny" `
                 -Evidence @("Missing 'ALL: ALL' default deny rule") `
                 -Recommendation "Add 'ALL: ALL' to /etc/hosts.deny and explicitly allow in hosts.allow" `
-                -MITRE "T1562.004"))
+                -MITRE "T1562.004" `
+                -CVSSv3Score "3.1" `
+                -TechnicalImpact "Without a default deny rule, network services may be accessible from unauthorized hosts, increasing the attack surface."))
         }
     }
 
@@ -122,7 +132,9 @@ function Invoke-NetworkConfigAnalyzer {
                 -Description "Found $($allowEntries.Count) allow entries in hosts.allow." `
                 -ArtifactPath "/etc/hosts.allow" `
                 -Evidence @($allowEntries) `
-                -Recommendation "Review allowed services and source addresses"))
+                -Recommendation "Review allowed services and source addresses" `
+                -CVSSv3Score '' `
+                -TechnicalImpact ''))
         }
     }
 
@@ -140,7 +152,9 @@ function Invoke-NetworkConfigAnalyzer {
                 -ArtifactPath "/etc/network/interfaces" `
                 -Evidence @($hookLines) `
                 -Recommendation "Verify network hook scripts are legitimate" `
-                -MITRE "T1037"))
+                -MITRE "T1037" `
+                -CVSSv3Score "5.3" `
+                -TechnicalImpact "May allow attacker to maintain persistent access by executing malicious code whenever network interfaces are brought up or down."))
         }
     }
 

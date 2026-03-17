@@ -226,7 +226,9 @@ function Invoke-AuthLogAnalyzer {
                             -Evidence @($line) `
                             -Recommendation "Verify this login was expected. Off-hours window: $offHoursStart`:00 - $offHoursEnd`:00." `
                             -Timestamp $parsed.Timestamp `
-                            -MITRE 'T1078'))
+                            -MITRE 'T1078' `
+                            -CVSSv3Score '5.3' `
+                            -TechnicalImpact "Authentication during off-hours may indicate unauthorized access using stolen credentials or an insider threat operating outside normal business windows."))
                     }
                 }
             }
@@ -318,7 +320,9 @@ function Invoke-AuthLogAnalyzer {
                         -Evidence $evidence `
                         -Recommendation 'Immediately disable the compromised account. Investigate all activity from this IP and the compromised user. Reset credentials and review for lateral movement.' `
                         -Timestamp $success.Timestamp `
-                        -MITRE 'T1110'))
+                        -MITRE 'T1110' `
+                        -CVSSv3Score '9.8' `
+                        -TechnicalImpact "Successful brute force attack grants the attacker authenticated access to the system, enabling remote code execution, data exfiltration, and lateral movement."))
                 }
             }
         }
@@ -362,7 +366,9 @@ function Invoke-AuthLogAnalyzer {
                 -ArtifactPath ($fails[0].SourceFile) `
                 -Evidence $evidence `
                 -Recommendation 'Block the source IP. Verify targeted accounts are not compromised. Review firewall and fail2ban configurations.' `
-                -MITRE 'T1110'))
+                -MITRE 'T1110' `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact "Active brute force attack may lead to credential compromise, granting the attacker authenticated remote access to the system."))
         }
     }
 
@@ -379,7 +385,9 @@ function Invoke-AuthLogAnalyzer {
             -Evidence @($suEvent.Line) `
             -Recommendation 'Verify this privilege escalation was authorized. Review what actions were performed as root.' `
             -Timestamp $suEvent.Timestamp `
-            -MITRE 'T1078'))
+            -MITRE 'T1078' `
+            -CVSSv3Score '7.8' `
+            -TechnicalImpact "Enables privilege escalation from a local user to root, granting full administrative control over the system."))
     }
 
     # -------------------------------------------------------------------------
@@ -406,7 +414,9 @@ function Invoke-AuthLogAnalyzer {
                 -ArtifactPath ($commands[0].SourceFile) `
                 -Evidence $evidence `
                 -Recommendation 'Review the commands executed via sudo for any unauthorized or suspicious activity.' `
-                -MITRE 'T1078'))
+                -MITRE 'T1078' `
+                -CVSSv3Score '6.7' `
+                -TechnicalImpact "Sudo command execution allows running commands as root or other privileged users, which could be leveraged for unauthorized system changes or data access."))
         }
     }
 
@@ -437,7 +447,9 @@ function Invoke-AuthLogAnalyzer {
                 -ArtifactPath ($logins[0].SourceFile) `
                 -Evidence $evidence `
                 -Recommendation 'Verify all source IPs are expected for this user. Investigate any unfamiliar IPs for potential unauthorized access.' `
-                -MITRE 'T1078'))
+                -MITRE 'T1078' `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact "Multiple source IPs for a single account may indicate compromised credentials being used from attacker-controlled infrastructure."))
         }
     }
 
@@ -469,7 +481,9 @@ function Invoke-AuthLogAnalyzer {
                 -ArtifactPath ($fails[0].SourceFile) `
                 -Evidence $evidence `
                 -Recommendation 'Block the source IP immediately. Check if any of the targeted accounts were compromised. Implement rate limiting and account lockout policies.' `
-                -MITRE 'T1110'))
+                -MITRE 'T1110' `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact "Credential stuffing attacks may compromise multiple user accounts, enabling unauthorized access and lateral movement across the environment."))
         }
     }
 
@@ -505,7 +519,9 @@ function Invoke-AuthLogAnalyzer {
         -Title 'Authentication log analysis summary' `
         -Description "Analyzed $($analyzedFiles.Count) authentication log file(s) containing $totalLines total lines. Found $($allLogins.Count) successful login(s) and $totalFailedAll failed attempt(s) from $($uniqueIPs.Count) unique IP(s)." `
         -Evidence $summaryEvidence `
-        -MITRE 'T1110'))
+        -MITRE 'T1110' `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     Write-Verbose "Auth log analysis complete: $($findings.Count) finding(s) generated."
 

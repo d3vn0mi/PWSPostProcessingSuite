@@ -118,7 +118,9 @@ function Invoke-AuditLogAnalyzer {
             -ArtifactPath "/var/log/audit/audit.log" `
             -Evidence @($anomalyEvents | Select-Object -First 10) `
             -Recommendation "Investigate each anomaly event for signs of compromise" `
-            -MITRE "T1068"))
+            -MITRE "T1068" `
+            -CVSSv3Score "7.8" `
+            -TechnicalImpact "Anomaly events such as abnormal process terminations or promiscuous mode may indicate exploit attempts, privilege escalation, or network sniffing activity."))
     }
 
     # Summary
@@ -127,7 +129,9 @@ function Invoke-AuditLogAnalyzer {
         -Description "Analyzed $($allLines.Count) audit log entries." `
         -ArtifactPath "/var/log/audit/audit.log" `
         -Evidence @("Total entries: $($allLines.Count)", "Suspicious exec: $($execveEvents.Count)", "File access: $($fileAccessEvents.Count)", "User mgmt: $($userAuthEvents.Count)", "Anomalies: $($anomalyEvents.Count)") `
-        -Recommendation "Correlate audit findings with other log sources"))
+        -Recommendation "Correlate audit findings with other log sources" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }

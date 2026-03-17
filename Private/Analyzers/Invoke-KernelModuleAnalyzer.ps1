@@ -52,7 +52,9 @@ function Invoke-KernelModuleAnalyzer {
                 -ArtifactPath "/proc/modules" `
                 -Evidence @("Loaded module: $mod") `
                 -Recommendation "This system is likely compromised. Perform full forensic analysis and consider reimaging." `
-                -MITRE "T1547.006"))
+                -MITRE "T1547.006" `
+                -CVSSv3Score '9.8' `
+                -TechnicalImpact "Active kernel rootkit provides complete system compromise with root-level access, process hiding, and ability to intercept all system operations"))
         }
     }
 
@@ -71,7 +73,9 @@ function Invoke-KernelModuleAnalyzer {
                     -ArtifactPath "/etc/modules" `
                     -Evidence @("Module: $trimmed") `
                     -Recommendation "Remove the module entry and investigate the system thoroughly" `
-                    -MITRE "T1547.006"))
+                    -MITRE "T1547.006" `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact "Kernel rootkit persists across reboots via auto-load, maintaining complete system compromise with root-level access and stealth capabilities"))
             }
         }
     }
@@ -92,7 +96,9 @@ function Invoke-KernelModuleAnalyzer {
                     -ArtifactPath "/etc/modprobe.d/$($mpFile.Name)" `
                     -Evidence @($trimmed) `
                     -Recommendation "Review the install command for legitimacy" `
-                    -MITRE "T1547.006"))
+                    -MITRE "T1547.006" `
+                    -CVSSv3Score '7.8' `
+                    -TechnicalImpact "Allows arbitrary command execution with root privileges when a kernel module is loaded, enabling persistent backdoor access"))
             }
         }
     }
@@ -104,7 +110,9 @@ function Invoke-KernelModuleAnalyzer {
             -Description "Found $($loadedModules.Count) loaded kernel modules." `
             -ArtifactPath "/proc/modules" `
             -Evidence @("Total loaded modules: $($loadedModules.Count)") `
-            -Recommendation "Review loaded modules against system baseline"))
+            -Recommendation "Review loaded modules against system baseline" `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''))
     }
 
     return $findings.ToArray()

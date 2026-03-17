@@ -122,7 +122,9 @@ function Invoke-PackageLogAnalyzer {
             -ArtifactPath "/var/log/apt/" `
             -Evidence @($suspiciousInstalls | ForEach-Object { "$($_.Action): $($_.Package) $(if($_.Timestamp){"at $($_.Timestamp)"})" }) `
             -Recommendation "Investigate why these tools were installed and by whom" `
-            -MITRE "T1588.002"))
+            -MITRE "T1588.002" `
+            -CVSSv3Score "5.3" `
+            -TechnicalImpact "Reconnaissance and post-exploitation tools indicate an attacker may be actively enumerating the network or establishing footholds."))
     }
 
     # Check for security tool removals
@@ -141,7 +143,9 @@ function Invoke-PackageLogAnalyzer {
             -ArtifactPath "/var/log/apt/" `
             -Evidence @($secRemovals | ForEach-Object { "Removed: $($_.Package) $(if($_.Timestamp){"at $($_.Timestamp)"})" }) `
             -Recommendation "Re-install removed security packages and investigate who removed them" `
-            -MITRE "T1562.001"))
+            -MITRE "T1562.001" `
+            -CVSSv3Score "7.5" `
+            -TechnicalImpact "Removal of security tools disables defenses such as auditing, intrusion detection, and antivirus, allowing attacker activity to go undetected."))
     }
 
     # Summary
@@ -151,7 +155,9 @@ function Invoke-PackageLogAnalyzer {
             -Description "Found $($installations.Count) installations and $($removals.Count) removals in package logs." `
             -ArtifactPath "/var/log/" `
             -Evidence @("Installations: $($installations.Count)", "Removals: $($removals.Count)") `
-            -Recommendation "Review package change history for unauthorized modifications"))
+            -Recommendation "Review package change history for unauthorized modifications" `
+            -CVSSv3Score '' `
+            -TechnicalImpact ''))
     }
 
     return $findings.ToArray()

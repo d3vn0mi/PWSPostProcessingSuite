@@ -57,7 +57,9 @@ function Invoke-FilesystemAnalyzer {
                         -ArtifactPath $trimmed `
                         -Evidence @($line) `
                         -Recommendation "Investigate this SUID binary. Check if it was recently modified or is a known GTFOBin." `
-                        -MITRE "T1548.001"))
+                        -MITRE "T1548.001" `
+                        -CVSSv3Score $(if ($severity -eq 'Critical') { '9.8' } elseif ($severity -eq 'High') { '7.8' } else { '6.7' }) `
+                        -TechnicalImpact "Enables privilege escalation from any local user to root via SUID execution in $(if ($trimmed -match '/tmp/|/dev/shm/|/var/tmp/|/home/') { 'a world-writable or user-controlled directory' } else { 'a non-standard location' })"))
                 }
             }
 
@@ -70,7 +72,9 @@ function Invoke-FilesystemAnalyzer {
                         -ArtifactPath $trimmed `
                         -Evidence @($line) `
                         -Recommendation "Remove world-writable permission from files in system directories" `
-                        -MITRE "T1222.002"))
+                        -MITRE "T1222.002" `
+                        -CVSSv3Score '7.5' `
+                        -TechnicalImpact "Allows any local user to modify sensitive system files, potentially enabling privilege escalation or system compromise"))
                 }
             }
         }
@@ -93,7 +97,9 @@ function Invoke-FilesystemAnalyzer {
                 -ArtifactPath $tempDir `
                 -Evidence @($hiddenFiles | Select-Object -First 10 | ForEach-Object { "$($_.Name) ($($_.Length) bytes)" }) `
                 -Recommendation "Investigate hidden files in temporary directories" `
-                -MITRE "T1564.001"))
+                -MITRE "T1564.001" `
+                -CVSSv3Score '7.1' `
+                -TechnicalImpact "May allow attacker to stage tools and maintain persistent access using hidden files in world-writable directories"))
         }
 
         # Executable scripts/binaries in temp dirs
@@ -105,7 +111,9 @@ function Invoke-FilesystemAnalyzer {
                 -ArtifactPath $tempDir `
                 -Evidence @($execFiles | Select-Object -First 10 | ForEach-Object { "$($_.Name) ($($_.Length) bytes)" }) `
                 -Recommendation "Review executable files in temporary directories for malicious content" `
-                -MITRE "T1059"))
+                -MITRE "T1059" `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact "Indicates possible attacker tool staging or malware execution from temporary directories"))
         }
     }
 
@@ -129,7 +137,9 @@ function Invoke-FilesystemAnalyzer {
                 -ArtifactPath $webRoot `
                 -Evidence @($suspiciousWebFiles | ForEach-Object { "$($_.FullName.Replace($EvidencePath,'')) ($($_.Length) bytes)" }) `
                 -Recommendation "Analyze these files for webshell code. Remove if confirmed malicious." `
-                -MITRE "T1505.003"))
+                -MITRE "T1505.003" `
+                -CVSSv3Score '9.8' `
+                -TechnicalImpact "Allows unauthenticated remote code execution on the web server, enabling full system compromise"))
         }
 
         # Hidden files in web root
@@ -141,7 +151,9 @@ function Invoke-FilesystemAnalyzer {
                 -ArtifactPath $webRoot `
                 -Evidence @($hiddenWebFiles | Select-Object -First 10 | ForEach-Object { $_.Name }) `
                 -Recommendation "Review hidden files in web root for backdoors or data staging" `
-                -MITRE "T1505.003"))
+                -MITRE "T1505.003" `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact "Hidden files in web root may indicate backdoor access or data exfiltration staging"))
         }
     }
 

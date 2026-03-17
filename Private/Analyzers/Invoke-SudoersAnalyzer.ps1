@@ -129,7 +129,9 @@ function Invoke-SudoersAnalyzer {
                     -ArtifactPath $filePath `
                     -Evidence @($line) `
                     -Recommendation 'Remove the NOPASSWD: ALL directive. If passwordless sudo is needed, restrict it to specific safe commands only.' `
-                    -MITRE $mitreSudo
+                    -MITRE $mitreSudo `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact 'Enables privilege escalation from any local user to root without password authentication, allowing full system compromise.'
                 ))
             }
 
@@ -148,7 +150,9 @@ function Invoke-SudoersAnalyzer {
                     -ArtifactPath $filePath `
                     -Evidence @($line) `
                     -Recommendation 'Restrict sudo access to specific required commands instead of ALL. Follow the principle of least privilege.' `
-                    -MITRE $mitreSudo
+                    -MITRE $mitreSudo `
+                    -CVSSv3Score '8.2' `
+                    -TechnicalImpact 'Enables privilege escalation to root for the specified user or group, allowing full administrative control of the system.'
                 ))
             }
             # Also catch simpler ALL patterns in the command list
@@ -162,7 +166,9 @@ function Invoke-SudoersAnalyzer {
                     -ArtifactPath $filePath `
                     -Evidence @($line) `
                     -Recommendation 'Restrict sudo access to specific required commands instead of ALL. Follow the principle of least privilege.' `
-                    -MITRE $mitreSudo
+                    -MITRE $mitreSudo `
+                    -CVSSv3Score '8.2' `
+                    -TechnicalImpact 'Enables privilege escalation to root for the specified user or group, allowing full administrative control of the system.'
                 ))
             }
 
@@ -193,7 +199,9 @@ function Invoke-SudoersAnalyzer {
                         -ArtifactPath $filePath `
                         -Evidence @($line) `
                         -Recommendation "Remove sudo access to $matchedBin. This binary can be abused to escalate privileges, spawn shells, or read/write arbitrary files." `
-                        -MITRE $mitreSudo
+                        -MITRE $mitreSudo `
+                        -CVSSv3Score '7.8' `
+                        -TechnicalImpact "Allows privilege escalation to root via GTFOBins exploitation of '$matchedBin', enabling shell escape or arbitrary file read/write."
                     ))
                 }
             }
@@ -211,7 +219,9 @@ function Invoke-SudoersAnalyzer {
                     -ArtifactPath $filePath `
                     -Evidence @($line) `
                     -Recommendation 'Remove the !authenticate directive. Sudo should require password authentication.' `
-                    -MITRE $mitreSudo
+                    -MITRE $mitreSudo `
+                    -CVSSv3Score '6.5' `
+                    -TechnicalImpact 'Disables password authentication for sudo, allowing any user with sudo access to escalate privileges without credential verification.'
                 ))
             }
 
@@ -225,7 +235,9 @@ function Invoke-SudoersAnalyzer {
                     -ArtifactPath $filePath `
                     -Evidence @($line) `
                     -Recommendation 'Remove the !requiretty directive unless specifically required for automation. Consider using Defaults requiretty.' `
-                    -MITRE $mitreSudo
+                    -MITRE $mitreSudo `
+                    -CVSSv3Score '5.3' `
+                    -TechnicalImpact 'Allows sudo execution without a TTY, enabling automated or remote privilege escalation from non-interactive sessions such as web shells.'
                 ))
             }
         }
@@ -255,7 +267,9 @@ function Invoke-SudoersAnalyzer {
         -Description 'Summary of sudoers configuration files analyzed and effective rules found.' `
         -ArtifactPath ($sudoersFiles[0].Path) `
         -Evidence @($summaryEvidence) `
-        -MITRE $mitreSudo
+        -MITRE $mitreSudo `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''
     ))
 
     return $findings.ToArray()

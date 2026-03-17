@@ -81,7 +81,9 @@ function Invoke-LDPreloadAnalyzer {
                 -ArtifactPath $resolvedPath `
                 -Evidence $evidence `
                 -Recommendation 'Immediately analyze the listed libraries with a malware analysis tool. Compare library hashes to known-good versions. Remove the entries and the malicious libraries. Investigate how they were placed and assess full compromise scope.' `
-                -MITRE 'T1574.006'))
+                -MITRE 'T1574.006' `
+                -CVSSv3Score '9.8' `
+                -TechnicalImpact "Malicious shared library injected into every process on the system, enabling credential theft, process hiding, and complete system compromise"))
 
             # Additionally flag entries pointing to suspicious locations
             foreach ($entry in $activeEntries) {
@@ -95,7 +97,9 @@ function Invoke-LDPreloadAnalyzer {
                             -ArtifactPath $resolvedPath `
                             -Evidence @("File: /etc/ld.so.preload", "Entry: $libPath", "Suspicious base directory: $susDir") `
                             -Recommendation 'Remove the entry immediately. Analyze the library for malicious functionality. This is a high-confidence indicator of compromise.' `
-                            -MITRE 'T1574.006'))
+                            -MITRE 'T1574.006' `
+                            -CVSSv3Score '9.8' `
+                            -TechnicalImpact "Rootkit library loaded from a world-writable directory into every process, enabling full system compromise and trivial re-infection"))
                         break
                     }
                 }
@@ -132,7 +136,9 @@ function Invoke-LDPreloadAnalyzer {
                     -ArtifactPath $resolvedPath `
                     -Evidence @("File: /etc/environment", "Line $lineNum`: $trimmed") `
                     -Recommendation 'Remove the LD_PRELOAD entry from /etc/environment. Analyze the referenced library for malicious behavior.' `
-                    -MITRE 'T1574.006'))
+                    -MITRE 'T1574.006' `
+                    -CVSSv3Score '8.4' `
+                    -TechnicalImpact "Forces a malicious shared library into all PAM-based login sessions system-wide, enabling credential interception and persistent backdoor access"))
             }
 
             # Also check for LD_LIBRARY_PATH manipulation pointing to suspicious dirs
@@ -151,7 +157,9 @@ function Invoke-LDPreloadAnalyzer {
                                     -ArtifactPath $resolvedPath `
                                     -Evidence @("File: /etc/environment", "Line $lineNum`: $trimmed", "Suspicious path: $p") `
                                     -Recommendation 'Remove the suspicious path from LD_LIBRARY_PATH. Investigate the directory for malicious libraries.' `
-                                    -MITRE 'T1574.006'))
+                                    -MITRE 'T1574.006' `
+                                    -CVSSv3Score '8.4' `
+                                    -TechnicalImpact "Allows attacker-controlled shared libraries to be loaded system-wide via LD_LIBRARY_PATH pointing to a world-writable directory"))
                                 break
                             }
                         }
@@ -193,7 +201,9 @@ function Invoke-LDPreloadAnalyzer {
                         -ArtifactPath $resolvedPath `
                         -Evidence @("File: /$profileFile", "Line $lineNum`: $trimmed") `
                         -Recommendation 'Remove the LD_PRELOAD setting. Analyze the referenced library for malicious behavior.' `
-                        -MITRE 'T1574.006'))
+                        -MITRE 'T1574.006' `
+                        -CVSSv3Score '8.4' `
+                        -TechnicalImpact "Forces a malicious shared library into all user sessions sourcing this profile, enabling credential interception and persistent access"))
                 }
             }
         }
@@ -223,7 +233,9 @@ function Invoke-LDPreloadAnalyzer {
                     -ArtifactPath $file.FullName `
                     -Evidence @("File: /$linuxPath", "Line $lineNum`: $trimmed") `
                     -Recommendation 'Remove the LD_PRELOAD setting. Analyze the referenced library for malicious behavior.' `
-                    -MITRE 'T1574.006'))
+                    -MITRE 'T1574.006' `
+                    -CVSSv3Score '8.4' `
+                    -TechnicalImpact "Forces a malicious shared library into all user sessions via profile.d, enabling credential interception and persistent access"))
             }
         }
     }
@@ -289,7 +301,9 @@ function Invoke-LDPreloadAnalyzer {
                         -ArtifactPath $confFile.ResolvedPath `
                         -Evidence @("File: /$($confFile.LinuxPath)", "Line $lineNum`: $trimmed", "Suspicious base directory: $susDir") `
                         -Recommendation 'Remove the suspicious library path. Investigate the directory for malicious shared libraries. Run ldconfig after removing the entry.' `
-                        -MITRE 'T1574.006'))
+                        -MITRE 'T1574.006' `
+                        -CVSSv3Score '8.4' `
+                        -TechnicalImpact "Allows shared library injection from a world-writable directory, enabling attacker to hijack any dynamically-linked application on the system"))
                     $isSuspicious = $true
                     break
                 }
@@ -304,7 +318,9 @@ function Invoke-LDPreloadAnalyzer {
                     -ArtifactPath $confFile.ResolvedPath `
                     -Evidence @("File: /$($confFile.LinuxPath)", "Line $lineNum`: $trimmed") `
                     -Recommendation 'Investigate the hidden directory and its contents. Remove the library path entry if unauthorized.' `
-                    -MITRE 'T1574.006'))
+                    -MITRE 'T1574.006' `
+                    -CVSSv3Score '8.4' `
+                    -TechnicalImpact "Hidden directory in library search path enables stealthy shared library injection, allowing attacker to hijack system applications"))
                 $isSuspicious = $true
             }
 
@@ -331,7 +347,9 @@ function Invoke-LDPreloadAnalyzer {
                         -ArtifactPath $confFile.ResolvedPath `
                         -Evidence @("File: /$($confFile.LinuxPath)", "Line $lineNum`: $trimmed", "Standard paths: $($standardLibPaths -join ', ')") `
                         -Recommendation 'Verify the library path belongs to legitimate software. Document the purpose if valid.' `
-                        -MITRE 'T1574.006'))
+                        -MITRE 'T1574.006' `
+                        -CVSSv3Score '4.7' `
+                        -TechnicalImpact "Non-standard library search path could be leveraged for shared library injection if the directory has weak permissions"))
                 }
             }
         }
@@ -384,7 +402,9 @@ function Invoke-LDPreloadAnalyzer {
         -Title 'Shared library configuration analysis summary' `
         -Description "Analyzed $($analyzedFiles.Count) library configuration file(s) with $($allLibraryPaths.Count) configured library path(s)." `
         -Evidence $summaryEvidence `
-        -MITRE 'T1574.006'))
+        -MITRE 'T1574.006' `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     Write-Verbose "LD_PRELOAD analysis complete: $($findings.Count) finding(s) generated."
 

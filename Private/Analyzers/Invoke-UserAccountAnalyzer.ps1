@@ -120,7 +120,9 @@ function Invoke-UserAccountAnalyzer {
             -ArtifactPath $passwdPath `
             -Evidence @($acct.RawLine) `
             -Recommendation 'Remove the UID 0 assignment from this account or disable it. Investigate whether this account was created legitimately or is an indicator of compromise.' `
-            -MITRE $mitreValidAccounts
+            -MITRE $mitreValidAccounts `
+            -CVSSv3Score '9.8' `
+            -TechnicalImpact 'Provides full root-equivalent privileges to a non-root account, enabling complete system compromise and potentially indicating a backdoor account.'
         ))
     }
 
@@ -140,7 +142,9 @@ function Invoke-UserAccountAnalyzer {
                 -ArtifactPath $shadowPath `
                 -Evidence @("$($username)::<remaining fields redacted>") `
                 -Recommendation 'Set a strong password for this account or lock it using: passwd -l <username>' `
-                -MITRE $mitreShadowFile
+                -MITRE $mitreShadowFile `
+                -CVSSv3Score '8.6' `
+                -TechnicalImpact 'Allows unauthenticated login to the system without any password, enabling unauthorized access and potential privilege escalation.'
             ))
         }
     }
@@ -168,7 +172,9 @@ function Invoke-UserAccountAnalyzer {
             -ArtifactPath $passwdPath `
             -Evidence @($acct.RawLine) `
             -Recommendation "Change the shell to /usr/sbin/nologin or /bin/false: usermod -s /usr/sbin/nologin $($acct.Username)" `
-            -MITRE $mitreValidAccounts
+            -MITRE $mitreValidAccounts `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'Service account with interactive shell could be leveraged for unauthorized access if compromised, providing a foothold for lateral movement.'
         ))
     }
 
@@ -210,7 +216,9 @@ function Invoke-UserAccountAnalyzer {
                 -ArtifactPath $shadowPath `
                 -Evidence @("$username - MaxDays: $maxDays") `
                 -Recommendation "Set password expiration: chage -M 90 $username" `
-                -MITRE $mitreValidAccounts
+                -MITRE $mitreValidAccounts `
+                -CVSSv3Score '2.6' `
+                -TechnicalImpact 'Non-expiring passwords increase the window of opportunity for credential-based attacks if the password is compromised.'
             ))
         }
     }
@@ -240,7 +248,9 @@ function Invoke-UserAccountAnalyzer {
         -Description 'Summary of all user accounts found in /etc/passwd.' `
         -ArtifactPath $passwdPath `
         -Evidence $summaryEvidence `
-        -MITRE $mitreValidAccounts
+        -MITRE $mitreValidAccounts `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''
     ))
 
     # ----------------------------------------------------------------
@@ -278,7 +288,9 @@ function Invoke-UserAccountAnalyzer {
                 -ArtifactPath $shadowPath `
                 -Evidence @("$username uses $weakAlgorithm (hash prefix: $hashPrefix)") `
                 -Recommendation "Force a password change to rehash with a stronger algorithm: passwd $username. Update /etc/login.defs ENCRYPT_METHOD to SHA512 or YESCRYPT." `
-                -MITRE $mitreShadowFile
+                -MITRE $mitreShadowFile `
+                -CVSSv3Score '7.5' `
+                -TechnicalImpact 'Weak password hashing algorithm enables rapid offline brute-force cracking of password hashes, potentially exposing account credentials.'
             ))
         }
     }
@@ -301,7 +313,9 @@ function Invoke-UserAccountAnalyzer {
             -ArtifactPath $passwdPath `
             -Evidence @($evidenceLines) `
             -Recommendation 'Assign unique UIDs to each account. Investigate whether duplicate UIDs were intentionally configured or indicate compromise.' `
-            -MITRE $mitreValidAccounts
+            -MITRE $mitreValidAccounts `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'Duplicate UIDs allow multiple accounts to share the same privileges, complicating auditing and potentially masking unauthorized access.'
         ))
     }
 

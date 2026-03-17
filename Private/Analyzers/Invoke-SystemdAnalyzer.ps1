@@ -55,7 +55,9 @@ function Invoke-SystemdAnalyzer {
                         -ArtifactPath $svcFile.FullName `
                         -Evidence @($execLine.Trim()) `
                         -Recommendation "Investigate the binary and the service. Legitimate services should not run from /tmp or /dev/shm." `
-                        -MITRE "T1543.002"))
+                        -MITRE "T1543.002" `
+                        -CVSSv3Score '9.4' `
+                        -TechnicalImpact 'Allows attacker to maintain persistent access by executing malicious binaries from world-writable directories on every system boot.'))
                     break
                 }
             }
@@ -68,7 +70,9 @@ function Invoke-SystemdAnalyzer {
                     -ArtifactPath $svcFile.FullName `
                     -Evidence @($execLine.Trim()) `
                     -Recommendation "Immediately investigate this service - likely malicious persistence." `
-                    -MITRE "T1543.002"))
+                    -MITRE "T1543.002" `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact 'Enables remote code execution as root on every boot by downloading and executing attacker-controlled payloads via systemd service.'))
             }
 
             # Check for reverse shell patterns
@@ -79,7 +83,9 @@ function Invoke-SystemdAnalyzer {
                     -ArtifactPath $svcFile.FullName `
                     -Evidence @($execLine.Trim()) `
                     -Recommendation "This is very likely a backdoor. Investigate immediately and check for lateral movement." `
-                    -MITRE "T1543.002"))
+                    -MITRE "T1543.002" `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact 'Active backdoor providing persistent remote shell access to the system on every boot, enabling full attacker control.'))
             }
         }
 
@@ -101,7 +107,9 @@ function Invoke-SystemdAnalyzer {
                     -ArtifactPath $svcFile.FullName `
                     -Evidence @("Type=oneshot, RemainAfterExit=yes") `
                     -Recommendation "Review the purpose of this service and its execution commands." `
-                    -MITRE "T1543.002"))
+                    -MITRE "T1543.002" `
+                    -CVSSv3Score '7.8' `
+                    -TechnicalImpact 'May allow attacker to execute malicious commands at boot with persistence, using oneshot service pattern to avoid detection.'))
             }
         }
 
@@ -116,7 +124,9 @@ function Invoke-SystemdAnalyzer {
                     -ArtifactPath $svcFile.FullName `
                     -Evidence @("Location: $relativePath") `
                     -Recommendation "Verify this is a legitimate user service and not unauthorized persistence." `
-                    -MITRE "T1543.002"))
+                    -MITRE "T1543.002" `
+                    -CVSSv3Score '7.5' `
+                    -TechnicalImpact 'May allow attacker to maintain persistent access across reboots via a service file in a non-standard location targeting boot.'))
             }
         }
     }
@@ -129,7 +139,9 @@ function Invoke-SystemdAnalyzer {
         -Description "Found $serviceCount service files and $timerCount timer files." `
         -ArtifactPath "/etc/systemd/" `
         -Evidence @($allServiceFiles | ForEach-Object { $_.Name }) `
-        -Recommendation "Review all custom services for legitimacy"))
+        -Recommendation "Review all custom services for legitimacy" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }

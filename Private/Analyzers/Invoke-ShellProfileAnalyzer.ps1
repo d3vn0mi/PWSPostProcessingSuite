@@ -134,7 +134,9 @@ function Invoke-ShellProfileAnalyzer {
                     -ArtifactPath $FilePath `
                     -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine") `
                     -Recommendation 'Remove the malicious line immediately. Investigate the remote URL to understand the payload. Perform a full compromise assessment.' `
-                    -MITRE 'T1546.004'))
+                    -MITRE 'T1546.004' `
+                    -CVSSv3Score '9.8' `
+                    -TechnicalImpact 'Allows remote code execution via automatic download and execution of attacker-controlled payloads on every shell login.'))
             }
 
             # PROF-002: Alias overrides for sensitive commands
@@ -148,7 +150,9 @@ function Invoke-ShellProfileAnalyzer {
                         -ArtifactPath $FilePath `
                         -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine", "Aliased command: $aliasName") `
                         -Recommendation "Investigate the alias definition. Verify it is not capturing credentials or redirecting command execution. Remove if unauthorized." `
-                        -MITRE 'T1546.004'))
+                        -MITRE 'T1546.004' `
+                        -CVSSv3Score '7.8' `
+                        -TechnicalImpact "Enables credential interception or command hijacking by replacing the security-sensitive '$aliasName' command with attacker-controlled behavior."))
                 }
             }
 
@@ -161,7 +165,9 @@ function Invoke-ShellProfileAnalyzer {
                     -ArtifactPath $FilePath `
                     -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine") `
                     -Recommendation 'Identify the preloaded library and analyze it for malicious behavior. Remove the LD_PRELOAD setting if unauthorized.' `
-                    -MITRE 'T1574.006'))
+                    -MITRE 'T1574.006' `
+                    -CVSSv3Score '8.4' `
+                    -TechnicalImpact 'Allows arbitrary code execution by hijacking shared library function calls in every process launched from this shell environment.'))
             }
 
             # PROF-004: PATH manipulation with suspicious directories
@@ -175,7 +181,9 @@ function Invoke-ShellProfileAnalyzer {
                             -ArtifactPath $FilePath `
                             -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine", "Suspicious directory: $susDir") `
                             -Recommendation 'Remove the suspicious directory from PATH. Check the directory for malicious binaries masquerading as common commands.' `
-                            -MITRE 'T1546.004'))
+                            -MITRE 'T1546.004' `
+                            -CVSSv3Score '7.8' `
+                            -TechnicalImpact "Enables command hijacking by placing malicious binaries in world-writable directory '$susDir' that is included in PATH."))
                         break
                     }
                 }
@@ -190,7 +198,9 @@ function Invoke-ShellProfileAnalyzer {
                         -ArtifactPath $FilePath `
                         -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine", "Hidden directory: $hiddenDir") `
                         -Recommendation 'Investigate the hidden directory and its contents. Remove from PATH if unauthorized.' `
-                        -MITRE 'T1546.004'))
+                        -MITRE 'T1546.004' `
+                        -CVSSv3Score '7.8' `
+                        -TechnicalImpact 'Enables command hijacking by placing malicious binaries in a hidden directory added to PATH, evading casual inspection.'))
                 }
             }
 
@@ -204,7 +214,9 @@ function Invoke-ShellProfileAnalyzer {
                         -ArtifactPath $FilePath `
                         -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine", "Matched pattern: $rsPattern") `
                         -Recommendation 'Remove the malicious code. Investigate the target IP/host for attribution. Assess full compromise scope.' `
-                        -MITRE 'T1546.004'))
+                        -MITRE 'T1546.004' `
+                        -CVSSv3Score '6.5' `
+                        -TechnicalImpact 'May allow attacker to establish a reverse shell on every user login, enabling persistent remote access to the system.'))
                     break
                 }
             }
@@ -218,7 +230,9 @@ function Invoke-ShellProfileAnalyzer {
                     -ArtifactPath $FilePath `
                     -Evidence @("File: $LinuxPath", "Line $lineNum`: $rawLine") `
                     -Recommendation 'Decode the base64 content and analyze the underlying command. Remove if malicious.' `
-                    -MITRE 'T1546.004'))
+                    -MITRE 'T1546.004' `
+                    -CVSSv3Score '6.5' `
+                    -TechnicalImpact 'Obfuscated command execution on shell login may hide malicious payloads such as backdoors, credential theft, or data exfiltration.'))
             }
         }
     }
@@ -313,7 +327,9 @@ function Invoke-ShellProfileAnalyzer {
         -Title 'Shell profile analysis summary' `
         -Description "Analyzed $($analyzedFiles.Count) shell profile file(s): $($systemFiles.Count) system-wide and $($userFiles.Count) user-specific." `
         -Evidence $summaryEvidence `
-        -MITRE 'T1546.004'))
+        -MITRE 'T1546.004' `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     Write-Verbose "Shell profile analysis complete: $($findings.Count) finding(s) generated from $($analyzedFiles.Count) file(s)."
 

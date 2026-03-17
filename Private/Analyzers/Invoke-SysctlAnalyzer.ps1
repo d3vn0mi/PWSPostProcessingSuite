@@ -71,13 +71,23 @@ function Invoke-SysctlAnalyzer {
             $currentValue = $settings[$check.Key].Value
             $source = $settings[$check.Key].Source
             if ($currentValue -in $check.BadValues) {
+                $cvss = switch ($check.Severity) {
+                    'Critical' { '9.8' }
+                    'High'     { '7.5' }
+                    'Medium'   { '5.3' }
+                    'Low'      { '3.1' }
+                    default    { '' }
+                }
+                $impact = "Insecure kernel parameter $($check.Key) = $currentValue may weaken system defenses or enable network-based attacks."
                 $findings.Add((New-Finding -Id "SYSCTL-$('{0:D3}' -f $checkId)" -Severity $check.Severity -Category "Kernel Security" `
                     -Title $check.Title `
                     -Description "Kernel parameter $($check.Key) is set to '$currentValue' which is a security concern." `
                     -ArtifactPath $source `
                     -Evidence @("$($check.Key) = $currentValue") `
                     -Recommendation $check.Recommendation `
-                    -MITRE $check.MITRE))
+                    -MITRE $check.MITRE `
+                    -CVSSv3Score $cvss `
+                    -TechnicalImpact $impact))
             }
         }
     }
@@ -92,7 +102,9 @@ function Invoke-SysctlAnalyzer {
                 -ArtifactPath $settings['kernel.core_pattern'].Source `
                 -Evidence @("kernel.core_pattern = $val") `
                 -Recommendation "Review the command that receives core dumps. Ensure it is a legitimate core dump handler." `
-                -MITRE "T1068"))
+                -MITRE "T1068" `
+                -CVSSv3Score '7.8' `
+                -TechnicalImpact 'Core dump piping to an external command can be exploited for privilege escalation by crafting core dumps that trigger arbitrary code execution as root.'))
         }
     }
 
@@ -102,7 +114,9 @@ function Invoke-SysctlAnalyzer {
         -Description "Analyzed $($settings.Count) kernel parameters from $($sysctlFiles.Count) config files." `
         -ArtifactPath "/etc/sysctl.conf" `
         -Evidence @("Total parameters: $($settings.Count)", "Config files: $($sysctlFiles.Count)") `
-        -Recommendation "Review all kernel parameters against CIS benchmarks"))
+        -Recommendation "Review all kernel parameters against CIS benchmarks" `
+        -CVSSv3Score '' `
+        -TechnicalImpact ''))
 
     return $findings.ToArray()
 }
