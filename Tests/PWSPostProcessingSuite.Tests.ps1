@@ -12,11 +12,11 @@ BeforeAll {
     $ModuleRoot = Split-Path -Parent $PSScriptRoot
 
     # Import the module to validate exports
-    Import-Module "$ModuleRoot/PWSPostProcessingSuite.psd1" -Force -ErrorAction Stop
+    Import-Module (Join-Path $ModuleRoot 'PWSPostProcessingSuite.psd1') -Force -ErrorAction Stop
 
     # Dot-source all module files directly so private functions are accessible in test scope
-    $PrivateFunctions = Get-ChildItem -Path "$ModuleRoot/Private" -Recurse -Filter '*.ps1' -ErrorAction SilentlyContinue
-    $PublicFunctions  = Get-ChildItem -Path "$ModuleRoot/Public" -Filter '*.ps1' -ErrorAction SilentlyContinue
+    $PrivateFunctions = Get-ChildItem -Path (Join-Path $ModuleRoot 'Private') -Recurse -Filter '*.ps1' -ErrorAction SilentlyContinue
+    $PublicFunctions  = Get-ChildItem -Path (Join-Path $ModuleRoot 'Public') -Filter '*.ps1' -ErrorAction SilentlyContinue
 
     foreach ($file in @($PrivateFunctions + $PublicFunctions)) {
         . $file.FullName
@@ -34,7 +34,7 @@ BeforeAll {
     }
 
     # Load default rules
-    $rulesPath = Join-Path $ModuleRoot 'Config' 'DefaultRules.yaml'
+    $rulesPath = Join-Path (Join-Path $ModuleRoot 'Config') 'DefaultRules.yaml'
     if (Test-Path $rulesPath) {
         $Script:DefaultRules = Import-YamlConfig -Path $rulesPath
     }
@@ -70,7 +70,7 @@ Describe 'Module Import Tests' {
         }
 
         It 'Should have default rules config' {
-            Test-Path (Join-Path $ModuleRoot 'Config' 'DefaultRules.yaml') | Should -BeTrue
+            Test-Path (Join-Path (Join-Path $ModuleRoot 'Config') 'DefaultRules.yaml') | Should -BeTrue
         }
     }
 
@@ -175,7 +175,7 @@ Describe 'Module Import Tests' {
                 'Invoke-ContainerAnalyzer'
             )
             foreach ($analyzer in $expectedAnalyzers) {
-                $path = Join-Path $ModuleRoot "Private/Analyzers/${analyzer}.ps1"
+                $path = Join-Path (Join-Path (Join-Path $ModuleRoot 'Private') 'Analyzers') "${analyzer}.ps1"
                 Test-Path $path | Should -BeTrue -Because "$analyzer.ps1 should exist"
             }
         }
@@ -478,19 +478,19 @@ Describe 'Utility Function Tests' {
         }
 
         It 'Should return a hashtable from the default rules file' {
-            $rulesFile = Join-Path $ModuleRoot 'Config' 'DefaultRules.yaml'
+            $rulesFile = Join-Path (Join-Path $ModuleRoot 'Config') 'DefaultRules.yaml'
             $result = Import-YamlConfig -Path $rulesFile
             $result | Should -BeOfType [hashtable]
         }
 
         It 'Should parse the suspicious_commands key from default rules' {
-            $rulesFile = Join-Path $ModuleRoot 'Config' 'DefaultRules.yaml'
+            $rulesFile = Join-Path (Join-Path $ModuleRoot 'Config') 'DefaultRules.yaml'
             $result = Import-YamlConfig -Path $rulesFile
             $result.Keys | Should -Contain 'suspicious_commands'
         }
 
         It 'Should parse the dangerous_sudoers_binaries key from default rules' {
-            $rulesFile = Join-Path $ModuleRoot 'Config' 'DefaultRules.yaml'
+            $rulesFile = Join-Path (Join-Path $ModuleRoot 'Config') 'DefaultRules.yaml'
             $result = Import-YamlConfig -Path $rulesFile
             $result.Keys | Should -Contain 'dangerous_sudoers_binaries'
         }
