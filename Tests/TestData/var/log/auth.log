@@ -1,0 +1,17 @@
+Mar 15 10:01:01 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45678 ssh2
+Mar 15 10:01:03 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45679 ssh2
+Mar 15 10:01:05 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45680 ssh2
+Mar 15 10:01:07 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45681 ssh2
+Mar 15 10:01:09 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45682 ssh2
+Mar 15 10:01:11 webserver sshd[1234]: Failed password for root from 192.168.1.100 port 45683 ssh2
+Mar 15 10:01:15 webserver sshd[1234]: Accepted password for root from 192.168.1.100 port 45684 ssh2
+Mar 15 10:01:15 webserver sshd[1234]: pam_unix(sshd:session): session opened for user root by (uid=0)
+Mar 15 10:05:00 webserver sshd[2345]: Failed password for admin from 10.0.0.50 port 33001 ssh2
+Mar 15 10:05:02 webserver sshd[2345]: Failed password for john from 10.0.0.50 port 33002 ssh2
+Mar 15 10:05:04 webserver sshd[2345]: Failed password for testuser from 10.0.0.50 port 33003 ssh2
+Mar 15 10:05:06 webserver sshd[2345]: Failed password for backup from 10.0.0.50 port 33004 ssh2
+Mar 15 12:00:00 webserver sshd[3456]: Accepted publickey for john from 192.168.1.50 port 22345 ssh2
+Mar 15 12:00:00 webserver sshd[3456]: pam_unix(sshd:session): session opened for user john by (uid=0)
+Mar 15 14:30:00 webserver sudo: john : TTY=pts/0 ; PWD=/home/john ; USER=root ; COMMAND=/bin/bash
+Mar 15 23:45:00 webserver sshd[4567]: Accepted password for admin from 203.0.113.99 port 55555 ssh2
+Mar 15 23:45:00 webserver sshd[4567]: pam_unix(sshd:session): session opened for user admin by (uid=0)
