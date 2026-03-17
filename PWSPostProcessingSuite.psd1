@@ -6,7 +6,7 @@
     CompanyName       = 'PWSPostProcessingSuite'
     Copyright         = '(c) 2025 d3vn0mi. All rights reserved.'
     Description       = 'Post-processing analysis suite for Linux forensic artifacts. Scans collected Linux system evidence for security issues, misconfigurations, and indicators of compromise.'
-    PowerShellVersion = '7.0'
+    PowerShellVersion = '5.1'
     FunctionsToExport = @(
         'Invoke-LinuxArtifactScan',
         'Invoke-BatchLinuxScan',
