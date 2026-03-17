@@ -1,0 +1,583 @@
+# PWSPostProcessingSuite - Default Detection Rules
+# Version: 1.0
+# These rules define patterns, thresholds, and known-bad indicators
+# for Linux security artifact analysis.
+
+metadata:
+  version: "1.0"
+  description: "Default detection rules for PWSPostProcessingSuite"
+  last_updated: "2025-03-17"
+
+# ============================================================
+# Suspicious command patterns found in shell history / logs
+# ============================================================
+suspicious_commands:
+
+  reverse_shells:
+    - pattern: 'bash\s+-i\s+>&\s*/dev/tcp/'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Bash reverse shell via /dev/tcp"
+    - pattern: 'nc\s+.*-e\s+/bin/'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Netcat reverse shell"
+    - pattern: 'ncat\s+.*-e\s+/bin/'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Ncat reverse shell"
+    - pattern: 'socat\s+.*exec:'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Socat reverse shell"
+    - pattern: "python.*socket.*connect"
+      severity: High
+      mitre: "T1059.006"
+      name: "Python socket connection"
+    - pattern: "python.*pty.spawn"
+      severity: Critical
+      mitre: "T1059.006"
+      name: "Python PTY spawn (shell upgrade)"
+    - pattern: 'perl\s+-e\s+.*socket'
+      severity: High
+      mitre: "T1059"
+      name: "Perl socket reverse shell"
+    - pattern: 'ruby\s+-rsocket'
+      severity: High
+      mitre: "T1059"
+      name: "Ruby socket reverse shell"
+    - pattern: 'php\s+-r\s+.*fsockopen'
+      severity: High
+      mitre: "T1059"
+      name: "PHP reverse shell"
+    - pattern: 'mkfifo\s+/tmp/.*\s*&&?\s*nc'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Named pipe reverse shell"
+    - pattern: '/bin/sh\s+-i'
+      severity: High
+      mitre: "T1059.004"
+      name: "Interactive shell spawn"
+    - pattern: '0<&\d+-\s*;exec\s+\d+<>/dev/tcp/'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "File descriptor reverse shell"
+
+  credential_access:
+    - pattern: 'cat\s+/etc/shadow'
+      severity: High
+      mitre: "T1003.008"
+      name: "Shadow file read"
+    - pattern: 'unshadow\s+'
+      severity: High
+      mitre: "T1003.008"
+      name: "Unshadow for password cracking"
+    - pattern: 'john\s+'
+      severity: High
+      mitre: "T1110.002"
+      name: "John the Ripper execution"
+    - pattern: 'hashcat\s+'
+      severity: High
+      mitre: "T1110.002"
+      name: "Hashcat execution"
+    - pattern: 'mimipenguin'
+      severity: Critical
+      mitre: "T1003"
+      name: "Mimipenguin credential dumper"
+    - pattern: '/etc/shadow'
+      severity: Medium
+      mitre: "T1003.008"
+      name: "Shadow file reference"
+    - pattern: 'credentials?\s*='
+      severity: Low
+      mitre: "T1552"
+      name: "Credential variable assignment"
+
+  reconnaissance:
+    - pattern: 'find\s+/\s+.*-perm.*4000'
+      severity: Medium
+      mitre: "T1083"
+      name: "SUID binary enumeration"
+    - pattern: 'find\s+/\s+.*-perm.*2000'
+      severity: Medium
+      mitre: "T1083"
+      name: "SGID binary enumeration"
+    - pattern: 'getcap\s+'
+      severity: Medium
+      mitre: "T1083"
+      name: "Linux capabilities enumeration"
+    - pattern: 'id\s*$'
+      severity: Low
+      mitre: "T1033"
+      name: "User identity check"
+    - pattern: 'whoami'
+      severity: Low
+      mitre: "T1033"
+      name: "Whoami command"
+    - pattern: 'uname\s+-a'
+      severity: Low
+      mitre: "T1082"
+      name: "System information gathering"
+    - pattern: 'cat\s+/etc/passwd'
+      severity: Low
+      mitre: "T1087.001"
+      name: "Passwd enumeration"
+    - pattern: 'cat\s+/proc/version'
+      severity: Low
+      mitre: "T1082"
+      name: "Kernel version check"
+    - pattern: 'dpkg\s+--list'
+      severity: Low
+      mitre: "T1518"
+      name: "Package enumeration"
+    - pattern: 'ss\s+-[a-z]*l'
+      severity: Low
+      mitre: "T1049"
+      name: "Listening port enumeration"
+    - pattern: 'netstat\s+'
+      severity: Low
+      mitre: "T1049"
+      name: "Network connection enumeration"
+    - pattern: 'ifconfig'
+      severity: Low
+      mitre: "T1016"
+      name: "Network interface enumeration"
+    - pattern: 'ip\s+addr'
+      severity: Low
+      mitre: "T1016"
+      name: "IP address enumeration"
+
+  privilege_escalation_tools:
+    - pattern: 'linpeas'
+      severity: High
+      mitre: "T1068"
+      name: "LinPEAS privilege escalation tool"
+    - pattern: 'linenum'
+      severity: High
+      mitre: "T1068"
+      name: "LinEnum enumeration tool"
+    - pattern: 'linux-exploit-suggester'
+      severity: High
+      mitre: "T1068"
+      name: "Linux exploit suggester"
+    - pattern: 'pspy'
+      severity: High
+      mitre: "T1057"
+      name: "pspy process monitor"
+    - pattern: 'dirty.?cow'
+      severity: Critical
+      mitre: "T1068"
+      name: "DirtyCow exploit"
+    - pattern: 'sudo\s+-l'
+      severity: Low
+      mitre: "T1548.003"
+      name: "Sudo privileges check"
+    - pattern: 'pkexec'
+      severity: Medium
+      mitre: "T1548.003"
+      name: "Pkexec usage (CVE-2021-4034)"
+
+  data_exfiltration:
+    - pattern: 'curl.*-F\s+.*@'
+      severity: High
+      mitre: "T1048"
+      name: "Curl file upload"
+    - pattern: 'curl.*--upload-file'
+      severity: High
+      mitre: "T1048"
+      name: "Curl file upload"
+    - pattern: 'scp\s+.*@.*:'
+      severity: Medium
+      mitre: "T1048"
+      name: "SCP file transfer"
+    - pattern: 'rsync\s+.*@.*:'
+      severity: Medium
+      mitre: "T1048"
+      name: "Rsync to remote"
+    - pattern: 'tar\s+.*\|\s*nc\s+'
+      severity: High
+      mitre: "T1048"
+      name: "Tar piped to netcat exfil"
+    - pattern: 'base64\s+.*\|\s*(curl|wget|nc)'
+      severity: High
+      mitre: "T1048"
+      name: "Base64 encoded exfiltration"
+
+  encoded_commands:
+    - pattern: 'echo\s+.*\|\s*base64\s+-d\s*\|\s*(bash|sh)'
+      severity: Critical
+      mitre: "T1027"
+      name: "Base64 decode piped to shell"
+    - pattern: 'base64\s+-d.*\|\s*(bash|sh)'
+      severity: Critical
+      mitre: "T1027"
+      name: "Base64 decoded execution"
+    - pattern: 'eval\s*\$\(.*base64'
+      severity: Critical
+      mitre: "T1027"
+      name: "Eval with base64 decoding"
+    - pattern: 'python.*-c.*exec\(.*decode'
+      severity: High
+      mitre: "T1027"
+      name: "Python encoded execution"
+    - pattern: "\\$\\(echo\\s+.*\\|\\s*xxd"
+      severity: High
+      mitre: "T1027"
+      name: "Hex encoded command"
+
+  defense_evasion:
+    - pattern: 'history\s+-c'
+      severity: High
+      mitre: "T1070.003"
+      name: "History cleared"
+    - pattern: 'unset\s+HISTFILE'
+      severity: High
+      mitre: "T1070.003"
+      name: "History file unset"
+    - pattern: 'export\s+HISTFILESIZE=0'
+      severity: High
+      mitre: "T1070.003"
+      name: "History file size zeroed"
+    - pattern: 'export\s+HISTSIZE=0'
+      severity: High
+      mitre: "T1070.003"
+      name: "History size zeroed"
+    - pattern: 'rm\s+.*\.bash_history'
+      severity: High
+      mitre: "T1070.003"
+      name: "Bash history deleted"
+    - pattern: 'shred\s+.*history'
+      severity: High
+      mitre: "T1070.003"
+      name: "History file shredded"
+    - pattern: 'truncate\s+.*log'
+      severity: High
+      mitre: "T1070.002"
+      name: "Log file truncated"
+    - pattern: '>\s*/var/log/'
+      severity: Critical
+      mitre: "T1070.002"
+      name: "Log file cleared via redirect"
+    - pattern: 'rm\s+.*(/var/log|\.log)'
+      severity: High
+      mitre: "T1070.002"
+      name: "Log file deleted"
+    - pattern: 'iptables\s+-F'
+      severity: High
+      mitre: "T1562.004"
+      name: "Firewall rules flushed"
+    - pattern: 'ufw\s+disable'
+      severity: High
+      mitre: "T1562.004"
+      name: "UFW firewall disabled"
+    - pattern: 'setenforce\s+0'
+      severity: High
+      mitre: "T1562.001"
+      name: "SELinux disabled"
+    - pattern: 'systemctl\s+stop\s+(apparmor|auditd|firewalld|rsyslog)'
+      severity: High
+      mitre: "T1562.001"
+      name: "Security service stopped"
+    - pattern: 'systemctl\s+disable\s+(apparmor|auditd|firewalld|rsyslog)'
+      severity: High
+      mitre: "T1562.001"
+      name: "Security service disabled"
+
+  download_execute:
+    - pattern: 'wget\s+.*\|\s*(bash|sh)'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Wget piped to shell"
+    - pattern: 'curl\s+.*\|\s*(bash|sh)'
+      severity: Critical
+      mitre: "T1059.004"
+      name: "Curl piped to shell"
+    - pattern: 'wget\s+.*-O\s*/tmp/'
+      severity: High
+      mitre: "T1105"
+      name: "Wget download to /tmp"
+    - pattern: 'curl\s+.*-o\s*/tmp/'
+      severity: High
+      mitre: "T1105"
+      name: "Curl download to /tmp"
+    - pattern: 'wget\s+.*\d+\.\d+\.\d+\.\d+'
+      severity: Medium
+      mitre: "T1105"
+      name: "Wget to IP address"
+    - pattern: 'curl\s+.*\d+\.\d+\.\d+\.\d+'
+      severity: Medium
+      mitre: "T1105"
+      name: "Curl to IP address"
+
+  cryptomining:
+    - pattern: 'xmrig'
+      severity: Critical
+      mitre: "T1496"
+      name: "XMRig crypto miner"
+    - pattern: 'minerd'
+      severity: Critical
+      mitre: "T1496"
+      name: "Minerd crypto miner"
+    - pattern: 'stratum\+tcp://'
+      severity: Critical
+      mitre: "T1496"
+      name: "Mining pool connection"
+    - pattern: 'cryptonight'
+      severity: High
+      mitre: "T1496"
+      name: "CryptoNight algorithm reference"
+    - pattern: 'nicehash'
+      severity: High
+      mitre: "T1496"
+      name: "NiceHash reference"
+
+# ============================================================
+# Dangerous binaries that should not appear in sudoers
+# (GTFOBins - binaries that can be used to escalate privileges)
+# ============================================================
+dangerous_sudoers_binaries:
+  - /usr/bin/vim
+  - /usr/bin/vi
+  - /usr/bin/nano
+  - /usr/bin/python
+  - /usr/bin/python3
+  - /usr/bin/perl
+  - /usr/bin/ruby
+  - /usr/bin/lua
+  - /usr/bin/bash
+  - /bin/bash
+  - /usr/bin/sh
+  - /bin/sh
+  - /usr/bin/dash
+  - /usr/bin/zsh
+  - /usr/bin/less
+  - /usr/bin/more
+  - /usr/bin/man
+  - /usr/bin/nmap
+  - /usr/bin/find
+  - /usr/bin/awk
+  - /usr/bin/gawk
+  - /usr/bin/env
+  - /usr/bin/ftp
+  - /usr/bin/git
+  - /usr/bin/gdb
+  - /usr/bin/strace
+  - /usr/bin/ltrace
+  - /usr/bin/docker
+  - /usr/bin/journalctl
+  - /usr/bin/systemctl
+  - /usr/bin/apt-get
+  - /usr/bin/dpkg
+  - /usr/bin/rpm
+  - /usr/bin/yum
+  - /usr/bin/pip
+  - /usr/bin/pip3
+  - /usr/bin/cpan
+  - /usr/bin/tar
+  - /usr/bin/zip
+  - /usr/bin/wget
+  - /usr/bin/curl
+  - /usr/bin/tee
+  - /usr/bin/sed
+  - /usr/bin/ed
+  - /usr/bin/mount
+  - /usr/bin/expect
+  - /usr/bin/screen
+  - /usr/bin/tmux
+  - /usr/sbin/tcpdump
+  - /usr/bin/ssh
+  - /usr/bin/nc
+  - /usr/bin/ncat
+  - /usr/bin/socat
+
+# ============================================================
+# SSH configuration security checks
+# ============================================================
+ssh_config_checks:
+  critical:
+    - key: "PermitRootLogin"
+      bad_values: ["yes"]
+      finding_id: "SSH-001"
+      title: "Root login permitted via SSH"
+      recommendation: "Set PermitRootLogin to 'no' or 'prohibit-password'"
+  high:
+    - key: "PermitEmptyPasswords"
+      bad_values: ["yes"]
+      finding_id: "SSH-003"
+      title: "Empty passwords permitted for SSH"
+      recommendation: "Set PermitEmptyPasswords to 'no'"
+    - key: "PasswordAuthentication"
+      bad_values: ["yes"]
+      finding_id: "SSH-002"
+      title: "Password authentication enabled for SSH"
+      recommendation: "Disable password auth and use key-based authentication"
+  medium:
+    - key: "X11Forwarding"
+      bad_values: ["yes"]
+      finding_id: "SSH-004"
+      title: "X11 forwarding enabled"
+      recommendation: "Disable X11Forwarding unless explicitly needed"
+    - key: "Protocol"
+      bad_values: ["1"]
+      finding_id: "SSH-005"
+      title: "SSHv1 protocol enabled"
+      recommendation: "Use Protocol 2 only"
+    - key: "MaxAuthTries"
+      bad_values: ["7", "8", "9", "10", "15", "20", "99"]
+      finding_id: "SSH-007"
+      title: "SSH MaxAuthTries set too high"
+      recommendation: "Set MaxAuthTries to 3-6"
+
+# ============================================================
+# Sysctl kernel security parameters
+# ============================================================
+sysctl_checks:
+  - key: "net.ipv4.ip_forward"
+    bad_values: ["1"]
+    severity: Medium
+    title: "IP forwarding enabled"
+    mitre: "T1090"
+  - key: "kernel.randomize_va_space"
+    bad_values: ["0"]
+    severity: High
+    title: "ASLR disabled"
+    mitre: "T1211"
+  - key: "net.ipv4.conf.all.accept_redirects"
+    bad_values: ["1"]
+    severity: Medium
+    title: "ICMP redirects accepted"
+    mitre: "T1557"
+  - key: "net.ipv4.conf.all.send_redirects"
+    bad_values: ["1"]
+    severity: Medium
+    title: "ICMP redirect sending enabled"
+    mitre: "T1557"
+  - key: "net.ipv4.tcp_syncookies"
+    bad_values: ["0"]
+    severity: Medium
+    title: "SYN cookies disabled"
+    mitre: "T1499"
+  - key: "kernel.core_pattern"
+    bad_values: ["|"]
+    severity: High
+    title: "Core dump pattern pipes to command"
+    mitre: "T1068"
+  - key: "kernel.modules_disabled"
+    bad_values: ["0"]
+    severity: Low
+    title: "Kernel module loading not restricted"
+    mitre: "T1547.006"
+  - key: "fs.protected_hardlinks"
+    bad_values: ["0"]
+    severity: Medium
+    title: "Hardlink protection disabled"
+    mitre: "T1068"
+  - key: "fs.protected_symlinks"
+    bad_values: ["0"]
+    severity: Medium
+    title: "Symlink protection disabled"
+    mitre: "T1068"
+  - key: "fs.suid_dumpable"
+    bad_values: ["1", "2"]
+    severity: Medium
+    title: "SUID core dumps enabled"
+    mitre: "T1003"
+
+# ============================================================
+# Known suspicious network indicators
+# ============================================================
+suspicious_network:
+  known_bad_ports:
+    - 4444
+    - 5555
+    - 1337
+    - 31337
+    - 6666
+    - 6667
+    - 9001
+    - 9002
+    - 8443
+    - 1234
+    - 12345
+    - 54321
+  tor_indicators:
+    - "9050"
+    - "9150"
+    - ".onion"
+  common_c2_ports:
+    - 443
+    - 8080
+    - 8443
+    - 4443
+
+# ============================================================
+# Suspicious packages
+# ============================================================
+suspicious_packages:
+  recon_tools:
+    - nmap
+    - masscan
+    - zmap
+    - nikto
+    - dirbuster
+    - gobuster
+    - ffuf
+    - sqlmap
+    - dirb
+    - wfuzz
+    - amass
+    - subfinder
+    - enum4linux
+    - smbclient
+  post_exploitation:
+    - netcat
+    - ncat
+    - socat
+    - chisel
+    - ligolo
+    - proxychains
+    - revsocks
+    - pwncat
+  security_removals:
+    - auditd
+    - rsyslog
+    - syslog-ng
+    - apparmor
+    - selinux-utils
+    - fail2ban
+    - clamav
+    - rkhunter
+    - chkrootkit
+    - aide
+
+# ============================================================
+# Persistence indicators
+# ============================================================
+persistence_paths:
+  suspicious_service_paths:
+    - /tmp/
+    - /dev/shm/
+    - /var/tmp/
+    - /run/
+    - /home/*/
+  suspicious_cron_indicators:
+    - pattern: '(wget|curl).*\|.*(bash|sh)'
+      name: "Download and execute in cron"
+    - pattern: '/dev/tcp/'
+      name: "Reverse shell in cron"
+    - pattern: 'base64\s+-d'
+      name: "Base64 decode in cron"
+    - pattern: 'nc\s+.*-e'
+      name: "Netcat shell in cron"
+    - pattern: '/tmp/\.'
+      name: "Hidden file in /tmp from cron"
+
+# ============================================================
+# Auth log analysis thresholds
+# ============================================================
+auth_log_thresholds:
+  brute_force_attempts: 5
+  brute_force_window_minutes: 10
+  off_hours_start: 22
+  off_hours_end: 6
+  max_unique_users_per_ip: 3

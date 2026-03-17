@@ -1,0 +1,29 @@
+# Severity Level Definitions
+# Used for scoring, prioritization, and report formatting
+
+severity_levels:
+  - name: Critical
+    score: 5
+    color: "#dc3545"
+    console_color: "Red"
+    description: "Immediate threat requiring urgent attention. Active compromise indicators, backdoors, or critical misconfigurations enabling full system compromise."
+  - name: High
+    score: 4
+    color: "#fd7e14"
+    console_color: "DarkRed"
+    description: "Significant security issue that could lead to compromise. Weak credentials, dangerous permissions, or suspicious activity patterns."
+  - name: Medium
+    score: 3
+    color: "#ffc107"
+    console_color: "Yellow"
+    description: "Security weakness that should be addressed. Hardening gaps, informational exposure, or non-standard configurations."
+  - name: Low
+    score: 2
+    color: "#17a2b8"
+    console_color: "Cyan"
+    description: "Minor security concern or best practice deviation. Low risk but worth noting."
+  - name: Informational
+    score: 1
+    color: "#6c757d"
+    console_color: "Gray"
+    description: "Contextual information useful for understanding the system posture. No direct security impact."
