@@ -143,6 +143,7 @@ function Invoke-SSHConfigAnalyzer {
 
     # ----------------------------------------------------------------
     # SSH-001 (Critical): PermitRootLogin yes
+    # CIS Benchmark 5.2.10: "Ensure SSH root login is disabled"
     # ----------------------------------------------------------------
     $permitRootLogin = & $getSettingValue 'PermitRootLogin'
     if ($null -ne $permitRootLogin -and $permitRootLogin.Value -ieq 'yes') {
@@ -151,13 +152,13 @@ function Invoke-SSHConfigAnalyzer {
             -Severity 'Critical' `
             -Category $analyzerCategory `
             -Title 'Root login permitted via SSH' `
-            -Description "PermitRootLogin is set to 'yes' in $($permitRootLogin.Source), allowing direct root authentication over SSH." `
+            -Description "PermitRootLogin is set to 'yes' in $($permitRootLogin.Source), allowing direct root authentication over SSH. Per CIS Benchmark 5.2.10, root login should be disabled to enforce accountability (all administrators must authenticate as themselves first, then escalate via sudo) and to eliminate the root account as a brute-force target." `
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $permitRootLogin.Source })[0].Path) `
             -Evidence @($permitRootLogin.Line) `
-            -Recommendation "Set PermitRootLogin to 'no' or 'prohibit-password'. Use regular accounts and sudo for privilege escalation." `
+            -Recommendation "Set PermitRootLogin to 'no' or 'prohibit-password' per CIS 5.2.10. Use named accounts with sudo for privilege escalation to maintain an audit trail." `
             -MITRE $mitreSSH `
             -CVSSv3Score '9.8' `
-            -TechnicalImpact 'Allows unauthenticated remote code execution as root via SSH if credentials are compromised or brute-forced.'
+            -TechnicalImpact 'Direct root SSH access eliminates accountability (no individual user attribution), makes the root account a brute-force target, and bypasses sudo audit logging.'
         ))
     }
 
@@ -184,6 +185,7 @@ function Invoke-SSHConfigAnalyzer {
 
     # ----------------------------------------------------------------
     # SSH-002 (High): PasswordAuthentication yes
+    # CIS Benchmark 5.2.15: "Ensure only strong Key Exchange algorithms are used"
     # ----------------------------------------------------------------
     $passwordAuth = & $getSettingValue 'PasswordAuthentication'
     if ($null -ne $passwordAuth -and $passwordAuth.Value -ieq 'yes') {
@@ -192,38 +194,40 @@ function Invoke-SSHConfigAnalyzer {
             -Severity 'High' `
             -Category $analyzerCategory `
             -Title 'Password authentication enabled for SSH' `
-            -Description "PasswordAuthentication is set to 'yes' in $($passwordAuth.Source). Password-based auth is susceptible to brute-force attacks." `
+            -Description "PasswordAuthentication is set to 'yes' in $($passwordAuth.Source). Password-based authentication is susceptible to brute-force, credential stuffing, and password spraying attacks. CIS recommends key-based authentication which provides cryptographic proof of identity and cannot be brute-forced remotely." `
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $passwordAuth.Source })[0].Path) `
             -Evidence @($passwordAuth.Line) `
-            -Recommendation 'Disable password authentication and use key-based authentication: PasswordAuthentication no' `
+            -Recommendation 'Disable password authentication and use key-based authentication: PasswordAuthentication no. Ensure all users have SSH keys configured before disabling.' `
             -MITRE $mitreSSH `
             -CVSSv3Score '7.5' `
-            -TechnicalImpact 'Password-based SSH authentication is susceptible to brute-force and credential stuffing attacks, potentially granting remote access.'
+            -TechnicalImpact 'Password-based SSH authentication is susceptible to brute-force, credential stuffing, and password spraying attacks, potentially granting remote shell access to the system.'
         ))
     }
 
     # ----------------------------------------------------------------
-    # SSH-003 (High): PermitEmptyPasswords yes
+    # SSH-003 (Critical): PermitEmptyPasswords yes
+    # CIS Benchmark 5.2.9: "Ensure SSH PermitEmptyPasswords is disabled"
     # ----------------------------------------------------------------
     $permitEmpty = & $getSettingValue 'PermitEmptyPasswords'
     if ($null -ne $permitEmpty -and $permitEmpty.Value -ieq 'yes') {
         $findings.Add((New-Finding `
             -Id 'SSH-003' `
-            -Severity 'High' `
+            -Severity 'Critical' `
             -Category $analyzerCategory `
             -Title 'Empty passwords permitted for SSH' `
-            -Description "PermitEmptyPasswords is set to 'yes' in $($permitEmpty.Source). Accounts with empty passwords can authenticate via SSH." `
+            -Description "PermitEmptyPasswords is set to 'yes' in $($permitEmpty.Source). Per CIS Benchmark 5.2.9, this must be disabled. Any account with an empty password field in /etc/shadow can be accessed remotely without any credentials, effectively providing unauthenticated remote shell access." `
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $permitEmpty.Source })[0].Path) `
             -Evidence @($permitEmpty.Line) `
-            -Recommendation "Set PermitEmptyPasswords to 'no'." `
+            -Recommendation "Set PermitEmptyPasswords to 'no' per CIS 5.2.9. Also audit /etc/shadow for any accounts with empty password fields." `
             -MITRE $mitreSSH `
-            -CVSSv3Score '9.1' `
-            -TechnicalImpact 'Accounts with empty passwords can be accessed remotely via SSH without any credentials, enabling trivial unauthorized access.'
+            -CVSSv3Score '9.8' `
+            -TechnicalImpact 'Accounts with empty passwords can be accessed remotely via SSH without any credentials. Combined with user enumeration, this provides trivial unauthenticated remote code execution.'
         ))
     }
 
     # ----------------------------------------------------------------
     # SSH-004 (Medium): X11Forwarding yes
+    # CIS Benchmark 5.2.6: "Ensure SSH X11 forwarding is disabled"
     # ----------------------------------------------------------------
     $x11Forwarding = & $getSettingValue 'X11Forwarding'
     if ($null -ne $x11Forwarding -and $x11Forwarding.Value -ieq 'yes') {
@@ -232,18 +236,19 @@ function Invoke-SSHConfigAnalyzer {
             -Severity 'Medium' `
             -Category $analyzerCategory `
             -Title 'X11 forwarding enabled' `
-            -Description "X11Forwarding is set to 'yes' in $($x11Forwarding.Source). X11 forwarding can be exploited for display hijacking and keylogging." `
+            -Description "X11Forwarding is set to 'yes' in $($x11Forwarding.Source). Per CIS Benchmark 5.2.6, X11 forwarding should be disabled on servers. The X11 protocol was not designed with security in mind and forwarding it over SSH exposes the X11 display to hijacking by other users on the server, enabling keylogging and screenshot capture." `
             -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $x11Forwarding.Source })[0].Path) `
             -Evidence @($x11Forwarding.Line) `
-            -Recommendation 'Disable X11Forwarding unless explicitly required: X11Forwarding no' `
+            -Recommendation 'Disable X11Forwarding per CIS 5.2.6: X11Forwarding no. If GUI access is needed, use VNC over SSH tunnel instead.' `
             -MITRE $mitreSSH `
             -CVSSv3Score '4.3' `
-            -TechnicalImpact 'X11 forwarding can be exploited for display hijacking, keylogging, and screenshot capture of user sessions.'
+            -TechnicalImpact 'X11 forwarding can be exploited for display hijacking, keylogging, and screenshot capture of user sessions on the server.'
         ))
     }
 
     # ----------------------------------------------------------------
-    # SSH-005 (Medium): Protocol 1
+    # SSH-005 (High): Protocol 1
+    # CIS Benchmark 5.2.4: "Ensure SSH Protocol is set to 2"
     # ----------------------------------------------------------------
     $protocol = & $getSettingValue 'Protocol'
     if ($null -ne $protocol) {
@@ -251,16 +256,16 @@ function Invoke-SSHConfigAnalyzer {
         if ($protocol.Value -match '\b1\b') {
             $findings.Add((New-Finding `
                 -Id 'SSH-005' `
-                -Severity 'Medium' `
+                -Severity 'High' `
                 -Category $analyzerCategory `
                 -Title 'SSHv1 protocol enabled' `
-                -Description "SSH Protocol version 1 is enabled in $($protocol.Source). SSHv1 has known cryptographic weaknesses and is deprecated." `
+                -Description "SSH Protocol version 1 is enabled in $($protocol.Source). Per CIS Benchmark 5.2.4, only Protocol 2 should be used. SSHv1 has known cryptographic weaknesses including CRC-32 compensation attack and weak MAC algorithms that enable session hijacking, man-in-the-middle attacks, and traffic decryption." `
                 -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $protocol.Source })[0].Path) `
                 -Evidence @($protocol.Line) `
-                -Recommendation 'Use only Protocol 2: Protocol 2' `
+                -Recommendation 'Use only Protocol 2 per CIS 5.2.4: Protocol 2. SSHv1 has been deprecated since 2006.' `
                 -MITRE $mitreSSH `
-                -CVSSv3Score '6.5' `
-                -TechnicalImpact 'SSHv1 has known cryptographic weaknesses that allow session hijacking and man-in-the-middle attacks.'
+                -CVSSv3Score '7.4' `
+                -TechnicalImpact 'SSHv1 has known cryptographic weaknesses that allow session hijacking, man-in-the-middle attacks, and potential traffic decryption.'
             ))
         }
     }
@@ -286,25 +291,26 @@ function Invoke-SSHConfigAnalyzer {
     }
 
     # ----------------------------------------------------------------
-    # SSH-007 (Medium): MaxAuthTries > 6
+    # SSH-007 (Medium): MaxAuthTries > 4
+    # CIS Benchmark 5.2.7: "Ensure SSH MaxAuthTries is set to 4 or less"
     # ----------------------------------------------------------------
     $maxAuthTries = & $getSettingValue 'MaxAuthTries'
     if ($null -ne $maxAuthTries) {
         $maxAuthVal = 0
         if ([int]::TryParse($maxAuthTries.Value, [ref]$maxAuthVal)) {
-            if ($maxAuthVal -gt 6) {
+            if ($maxAuthVal -gt 4) {
                 $findings.Add((New-Finding `
                     -Id 'SSH-007' `
                     -Severity 'Medium' `
                     -Category $analyzerCategory `
                     -Title "SSH MaxAuthTries set too high: $maxAuthVal" `
-                    -Description "MaxAuthTries is set to $maxAuthVal in $($maxAuthTries.Source). High values allow more brute-force attempts per connection." `
+                    -Description "MaxAuthTries is set to $maxAuthVal in $($maxAuthTries.Source). Per CIS Benchmark 5.2.7, this should be 4 or less. Each SSH connection allows up to MaxAuthTries password attempts before disconnecting. A value of $maxAuthVal allows an attacker to attempt $([math]::Floor($maxAuthVal / 2)) password guesses per connection (SSH logs a failure at the halfway point), significantly increasing brute-force efficiency." `
                     -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $maxAuthTries.Source })[0].Path) `
                     -Evidence @($maxAuthTries.Line) `
-                    -Recommendation 'Set MaxAuthTries to 3-6 to limit authentication attempts per connection.' `
+                    -Recommendation 'Set MaxAuthTries to 4 or less per CIS 5.2.7 to limit brute-force attempts per connection. Combine with fail2ban for IP-based blocking.' `
                     -MITRE $mitreSSH `
                     -CVSSv3Score '5.3' `
-                    -TechnicalImpact 'High MaxAuthTries allows more brute-force password attempts per SSH connection, increasing the likelihood of credential compromise.'
+                    -TechnicalImpact "MaxAuthTries of $maxAuthVal allows up to $([math]::Floor($maxAuthVal / 2)) password guesses per SSH connection, increasing the efficiency of brute-force attacks."
                 ))
             }
         }

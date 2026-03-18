@@ -108,6 +108,7 @@ function Invoke-UserAccountAnalyzer {
 
     # ----------------------------------------------------------------
     # ACCT-001 (Critical): Non-root accounts with UID 0
+    # CIS Benchmark 6.2.2: "Ensure root is the only UID 0 account"
     # ----------------------------------------------------------------
     $uid0Accounts = $passwdEntries | Where-Object { $_.UID -eq 0 -and $_.Username -ne 'root' }
     foreach ($acct in $uid0Accounts) {
@@ -116,18 +117,19 @@ function Invoke-UserAccountAnalyzer {
             -Severity 'Critical' `
             -Category $analyzerCategory `
             -Title "Non-root account with UID 0: $($acct.Username)" `
-            -Description "Account '$($acct.Username)' has UID 0, granting full root-equivalent privileges. Only the 'root' account should have UID 0." `
+            -Description "Account '$($acct.Username)' has UID 0, granting full root-equivalent privileges. Per CIS Benchmark 6.2.2, only the 'root' account should have UID 0. Additional UID 0 accounts bypass sudo audit controls, are invisible to many monitoring tools that only track 'root', and are a well-known persistence technique used by attackers to maintain backdoor access." `
             -ArtifactPath $passwdPath `
             -Evidence @($acct.RawLine) `
-            -Recommendation 'Remove the UID 0 assignment from this account or disable it. Investigate whether this account was created legitimately or is an indicator of compromise.' `
+            -Recommendation "Remove the UID 0 assignment per CIS 6.2.2 or disable the account: usermod -L $($acct.Username). Investigate whether this account was created legitimately or is an indicator of compromise. Check creation timestamps and correlate with security events." `
             -MITRE $mitreValidAccounts `
             -CVSSv3Score '9.8' `
-            -TechnicalImpact 'Provides full root-equivalent privileges to a non-root account, enabling complete system compromise and potentially indicating a backdoor account.'
+            -TechnicalImpact "Provides full root-equivalent privileges to '$($acct.Username)', bypassing sudo audit controls. This is a common attacker persistence technique (backdoor account)."
         ))
     }
 
     # ----------------------------------------------------------------
-    # ACCT-002 (High): Accounts with empty password field in shadow
+    # ACCT-002 (Critical): Accounts with empty password field in shadow
+    # CIS Benchmark 6.2.1: "Ensure accounts in /etc/passwd use shadowed passwords"
     # ----------------------------------------------------------------
     foreach ($username in $shadowMap.Keys) {
         $hash = $shadowMap[$username].Hash
@@ -135,16 +137,16 @@ function Invoke-UserAccountAnalyzer {
         if ($hash -eq '' -or $hash -eq '""') {
             $findings.Add((New-Finding `
                 -Id 'ACCT-002' `
-                -Severity 'High' `
+                -Severity 'Critical' `
                 -Category $analyzerCategory `
                 -Title "Account with empty password: $username" `
-                -Description "Account '$username' has an empty password field in /etc/shadow, allowing login without a password." `
+                -Description "Account '$username' has an empty password field in /etc/shadow, allowing login without any password. Per CIS Benchmark 6.2.1, all accounts must use shadowed passwords. An empty password field means anyone can authenticate as this user locally or via any service that uses PAM (SSH with PermitEmptyPasswords, FTP, web applications, etc.)." `
                 -ArtifactPath $shadowPath `
                 -Evidence @("$($username)::<remaining fields redacted>") `
-                -Recommendation 'Set a strong password for this account or lock it using: passwd -l <username>' `
+                -Recommendation "Lock the account immediately: passwd -l $username. Then investigate whether this was intentional or indicates compromise. Set a strong password if the account is needed." `
                 -MITRE $mitreShadowFile `
-                -CVSSv3Score '8.6' `
-                -TechnicalImpact 'Allows unauthenticated login to the system without any password, enabling unauthorized access and potential privilege escalation.'
+                -CVSSv3Score '9.8' `
+                -TechnicalImpact "Allows unauthenticated login as '$username' without any password. If SSH PermitEmptyPasswords is enabled, this provides unauthenticated remote access."
             ))
         }
     }
@@ -255,6 +257,8 @@ function Invoke-UserAccountAnalyzer {
 
     # ----------------------------------------------------------------
     # ACCT-006 (High): Accounts using weak hash algorithms
+    # CIS Benchmark 5.4.4: "Ensure default group for the root account is GID 0"
+    # Reference: NIST SP 800-132 recommends strong KDFs (bcrypt, scrypt, Argon2)
     # $1$ = MD5, DES = no $ prefix (and not * or ! which are locked)
     # ----------------------------------------------------------------
     foreach ($username in $shadowMap.Keys) {
@@ -284,10 +288,10 @@ function Invoke-UserAccountAnalyzer {
                 -Severity 'High' `
                 -Category $analyzerCategory `
                 -Title "Weak password hash algorithm for: $username" `
-                -Description "Account '$username' uses the weak $weakAlgorithm hashing algorithm. Modern systems should use SHA-512 ($6$) or yescrypt ($y$)." `
+                -Description "Account '$username' uses the weak $weakAlgorithm hashing algorithm. MD5 hashes can be cracked at billions of attempts per second on modern GPUs (hashcat benchmark: ~30 billion MD5/s). Modern systems should use SHA-512 (`$6`$) or yescrypt (`$y`$) which are computationally expensive and designed to resist GPU-accelerated cracking." `
                 -ArtifactPath $shadowPath `
                 -Evidence @("$username uses $weakAlgorithm (hash prefix: $hashPrefix)") `
-                -Recommendation "Force a password change to rehash with a stronger algorithm: passwd $username. Update /etc/login.defs ENCRYPT_METHOD to SHA512 or YESCRYPT." `
+                -Recommendation "Force a password change to rehash with a stronger algorithm: passwd $username. Update /etc/login.defs ENCRYPT_METHOD to SHA512 or YESCRYPT per CIS Benchmark recommendations." `
                 -MITRE $mitreShadowFile `
                 -CVSSv3Score '7.5' `
                 -TechnicalImpact 'Weak password hashing algorithm enables rapid offline brute-force cracking of password hashes, potentially exposing account credentials.'
@@ -297,6 +301,7 @@ function Invoke-UserAccountAnalyzer {
 
     # ----------------------------------------------------------------
     # ACCT-007 (Medium): Duplicate UIDs
+    # CIS Benchmark 6.2.16: "Ensure no duplicate UIDs exist"
     # ----------------------------------------------------------------
     $uidGroups = $passwdEntries | Group-Object -Property UID | Where-Object { $_.Count -gt 1 }
     foreach ($group in $uidGroups) {
@@ -309,7 +314,7 @@ function Invoke-UserAccountAnalyzer {
             -Severity 'Medium' `
             -Category $analyzerCategory `
             -Title "Duplicate UID detected: $uid" `
-            -Description "Multiple accounts share UID $uid ($usernames). Duplicate UIDs can lead to privilege confusion and complicate auditing." `
+            -Description "Multiple accounts share UID $uid ($usernames). Per CIS Benchmark 6.2.16, each account must have a unique UID. Duplicate UIDs cause file ownership ambiguity, make audit log attribution unreliable, and can mask unauthorized access." `
             -ArtifactPath $passwdPath `
             -Evidence @($evidenceLines) `
             -Recommendation 'Assign unique UIDs to each account. Investigate whether duplicate UIDs were intentionally configured or indicate compromise.' `
@@ -321,6 +326,9 @@ function Invoke-UserAccountAnalyzer {
 
     # ----------------------------------------------------------------
     # ACCT-008: Password policy weaknesses in /etc/login.defs
+    # CIS Benchmark 5.4.1.1: "Ensure password expiration is 365 days or less"
+    # CIS Benchmark 5.4.1.2: "Ensure minimum days between password changes"
+    # CIS Benchmark 5.4.1.4: "Ensure inactive password lock is 30 days or less"
     # ----------------------------------------------------------------
     $loginDefsPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath 'etc/login.defs'
     if (Test-Path $loginDefsPath -PathType Leaf) {
@@ -373,7 +381,7 @@ function Invoke-UserAccountAnalyzer {
                 -Description "Password policy weaknesses detected in /etc/login.defs: $($policyIssues.Count) issue(s) found." `
                 -ArtifactPath $loginDefsPath `
                 -Evidence $policyIssues `
-                -Recommendation 'Update /etc/login.defs: Set PASS_MAX_DAYS to 90, PASS_MIN_DAYS to 1, PASS_MIN_LEN to 12, ENCRYPT_METHOD to SHA512 or YESCRYPT.' `
+                -Recommendation 'Update /etc/login.defs per CIS Benchmarks: PASS_MAX_DAYS=365 (CIS 5.4.1.1), PASS_MIN_DAYS=1 (CIS 5.4.1.2), PASS_MIN_LEN=14, ENCRYPT_METHOD=SHA512 or YESCRYPT.' `
                 -MITRE $mitreValidAccounts `
                 -CVSSv3Score '5.3' `
                 -TechnicalImpact 'Weak password policies increase the risk of credential compromise through brute-force attacks or use of weak passwords.'

@@ -4,9 +4,16 @@
 # for Linux security artifact analysis.
 
 metadata:
-  version: "1.0"
-  description: "Default detection rules for PWSPostProcessingSuite"
-  last_updated: "2025-03-17"
+  version: "1.1"
+  description: "Default detection rules for PWSPostProcessingSuite by d3vn0mi"
+  author: "d3vn0mi"
+  license: "MIT"
+  last_updated: "2026-03-18"
+  references:
+    - "CIS Benchmark for Distribution Independent Linux v2.0.0"
+    - "MITRE ATT&CK Framework v14"
+    - "GTFOBins (https://gtfobins.github.io/)"
+    - "OWASP Testing Guide v4.2"
 
 # ============================================================
 # Suspicious command patterns found in shell history / logs
@@ -334,6 +341,10 @@ suspicious_commands:
 # ============================================================
 # Dangerous binaries that should not appear in sudoers
 # (GTFOBins - binaries that can be used to escalate privileges)
+# Reference: GTFOBins (https://gtfobins.github.io/)
+# Reference: CIS Benchmark 5.3.5
+# These binaries support shell escapes, arbitrary file I/O,
+# or code execution when run with elevated privileges via sudo.
 # ============================================================
 dangerous_sudoers_binaries:
   - /usr/bin/vim
@@ -392,6 +403,7 @@ dangerous_sudoers_binaries:
 
 # ============================================================
 # SSH configuration security checks
+# Reference: CIS Benchmark 5.2.x (SSH Server Configuration)
 # ============================================================
 ssh_config_checks:
   critical:
@@ -399,37 +411,44 @@ ssh_config_checks:
       bad_values: ["yes"]
       finding_id: "SSH-001"
       title: "Root login permitted via SSH"
-      recommendation: "Set PermitRootLogin to 'no' or 'prohibit-password'"
+      recommendation: "Set PermitRootLogin to 'no' or 'prohibit-password' (CIS 5.2.10)"
+      cis_reference: "5.2.10"
   high:
     - key: "PermitEmptyPasswords"
       bad_values: ["yes"]
       finding_id: "SSH-003"
       title: "Empty passwords permitted for SSH"
-      recommendation: "Set PermitEmptyPasswords to 'no'"
+      recommendation: "Set PermitEmptyPasswords to 'no' (CIS 5.2.9)"
+      cis_reference: "5.2.9"
     - key: "PasswordAuthentication"
       bad_values: ["yes"]
       finding_id: "SSH-002"
       title: "Password authentication enabled for SSH"
-      recommendation: "Disable password auth and use key-based authentication"
+      recommendation: "Disable password auth and use key-based authentication (CIS 5.2.15)"
+      cis_reference: "5.2.15"
   medium:
     - key: "X11Forwarding"
       bad_values: ["yes"]
       finding_id: "SSH-004"
       title: "X11 forwarding enabled"
-      recommendation: "Disable X11Forwarding unless explicitly needed"
+      recommendation: "Disable X11Forwarding unless explicitly needed (CIS 5.2.6)"
+      cis_reference: "5.2.6"
     - key: "Protocol"
       bad_values: ["1"]
       finding_id: "SSH-005"
       title: "SSHv1 protocol enabled"
-      recommendation: "Use Protocol 2 only"
+      recommendation: "Use Protocol 2 only (CIS 5.2.4)"
+      cis_reference: "5.2.4"
     - key: "MaxAuthTries"
       bad_values: ["7", "8", "9", "10", "15", "20", "99"]
       finding_id: "SSH-007"
       title: "SSH MaxAuthTries set too high"
-      recommendation: "Set MaxAuthTries to 3-6"
+      recommendation: "Set MaxAuthTries to 4 or less (CIS 5.2.7)"
+      cis_reference: "5.2.7"
 
 # ============================================================
 # Sysctl kernel security parameters
+# Reference: CIS Benchmark 3.x (Network), 1.5.x (Kernel)
 # ============================================================
 sysctl_checks:
   - key: "net.ipv4.ip_forward"
@@ -437,51 +456,70 @@ sysctl_checks:
     severity: Medium
     title: "IP forwarding enabled"
     mitre: "T1090"
+    cis_reference: "3.1.1"
+    rationale: "IP forwarding should be disabled unless this system is a router. Enables network pivoting if compromised."
   - key: "kernel.randomize_va_space"
     bad_values: ["0"]
     severity: High
     title: "ASLR disabled"
     mitre: "T1211"
+    cis_reference: "1.5.2"
+    rationale: "ASLR randomizes memory layout to prevent exploitation of memory corruption vulnerabilities. Disabling it makes buffer overflow exploits significantly easier."
   - key: "net.ipv4.conf.all.accept_redirects"
     bad_values: ["1"]
     severity: Medium
     title: "ICMP redirects accepted"
     mitre: "T1557"
+    cis_reference: "3.2.2"
+    rationale: "Accepting ICMP redirects allows an attacker to modify the routing table, enabling man-in-the-middle attacks."
   - key: "net.ipv4.conf.all.send_redirects"
     bad_values: ["1"]
     severity: Medium
     title: "ICMP redirect sending enabled"
     mitre: "T1557"
+    cis_reference: "3.1.2"
+    rationale: "Only routers should send ICMP redirects. On non-router hosts this could be exploited for traffic redirection."
   - key: "net.ipv4.tcp_syncookies"
     bad_values: ["0"]
     severity: Medium
     title: "SYN cookies disabled"
     mitre: "T1499"
+    cis_reference: "3.2.8"
+    rationale: "SYN cookies protect against SYN flood DoS attacks. Disabling them leaves the system vulnerable to connection table exhaustion."
   - key: "kernel.core_pattern"
     bad_values: ["|"]
     severity: High
     title: "Core dump pattern pipes to command"
     mitre: "T1068"
+    rationale: "A core_pattern that pipes to a command can be abused for privilege escalation by triggering a crash in a SUID binary."
   - key: "kernel.modules_disabled"
     bad_values: ["0"]
     severity: Low
     title: "Kernel module loading not restricted"
     mitre: "T1547.006"
+    cis_reference: "1.1.1.8"
+    rationale: "Unrestricted module loading allows rootkits to be loaded into the kernel. Consider disabling after boot."
   - key: "fs.protected_hardlinks"
     bad_values: ["0"]
     severity: Medium
     title: "Hardlink protection disabled"
     mitre: "T1068"
+    cis_reference: "1.5.4"
+    rationale: "Without hardlink protection, users can create hardlinks to files they don't own, enabling TOCTOU race condition exploits."
   - key: "fs.protected_symlinks"
     bad_values: ["0"]
     severity: Medium
     title: "Symlink protection disabled"
     mitre: "T1068"
+    cis_reference: "1.5.4"
+    rationale: "Without symlink protection, symlink attacks in world-writable directories (like /tmp) can be used for privilege escalation."
   - key: "fs.suid_dumpable"
     bad_values: ["1", "2"]
     severity: Medium
     title: "SUID core dumps enabled"
     mitre: "T1003"
+    cis_reference: "1.5.1"
+    rationale: "Allowing core dumps from SUID programs can expose sensitive data (passwords, keys) from privileged process memory."
 
 # ============================================================
 # Known suspicious network indicators
@@ -574,6 +612,7 @@ persistence_paths:
 
 # ============================================================
 # Auth log analysis thresholds
+# Reference: CIS Benchmark 5.2.7 (MaxAuthTries), 5.4.2 (Lockout)
 # ============================================================
 auth_log_thresholds:
   brute_force_attempts: 5
@@ -583,7 +622,8 @@ auth_log_thresholds:
   max_unique_users_per_ip: 3
 
 # ============================================================
-# Credential and API key patterns (inspired by LinPEAS)
+# Credential and API key patterns
+# Reference: OWASP Testing Guide, LinPEAS, TruffleHog
 # ============================================================
 credential_patterns:
   aws_access_key:
@@ -659,6 +699,10 @@ credential_patterns:
 
 # ============================================================
 # Sensitive groups for privilege escalation
+# Reference: CIS Benchmark 6.2.x, GTFOBins, Docker/LXD breakout
+# docker/lxd/lxc: container breakout to host root
+# disk: raw block device access bypasses filesystem permissions
+# shadow: read password hashes for offline cracking
 # ============================================================
 sensitive_groups:
   - docker
@@ -715,7 +759,8 @@ cloud_indicators:
     - '.kube/config'
 
 # ============================================================
-# Kernel hardening parameters (LinPEAS-inspired)
+# Kernel hardening parameters
+# Reference: CIS Benchmark 1.5.x, KSPP (Kernel Self Protection Project)
 # ============================================================
 kernel_hardening_params:
   - name: 'kernel.kptr_restrict'
