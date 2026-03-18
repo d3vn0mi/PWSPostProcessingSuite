@@ -161,5 +161,147 @@ function Invoke-ContainerAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # CTR-010: CVE-2019-5736 (runc vulnerability)
+    # ----------------------------------------------------------------
+    $runcVersionFiles = @()
+    foreach ($pattern in @('runc*', 'docker_version*', 'container_runtime*')) {
+        $files = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter $pattern
+        foreach ($f in $files) { $runcVersionFiles += $f }
+    }
+
+    foreach ($vFile in $runcVersionFiles) {
+        $content = (Read-ArtifactContent -Path $vFile.FullName) -join "`n"
+        if ($content -match 'runc\s+version\s+(\d+\.\d+\.\d+)') {
+            $runcVersion = $Matches[1]
+            # CVE-2019-5736 affects runc < 1.0.0-rc6 (approximately < 1.0.0)
+            $parts = $runcVersion.Split('.')
+            $major = [int]$parts[0]; $minor = [int]$parts[1]
+            if ($major -eq 0 -or ($major -eq 1 -and $minor -eq 0 -and $runcVersion -match 'rc[1-5]')) {
+                $findings.Add((New-Finding -Id "CTR-010" -Severity "Critical" -Category "Container Security" `
+                    -Title "CVE-2019-5736: Vulnerable runc version $runcVersion" `
+                    -Description "The runc version ($runcVersion) is vulnerable to CVE-2019-5736, which allows container escape by overwriting the host runc binary." `
+                    -ArtifactPath $vFile.FullName `
+                    -Evidence @("runc version: $runcVersion", "CVE: CVE-2019-5736") `
+                    -Recommendation "Upgrade runc to version 1.0.0-rc6 or later. Apply vendor patches." `
+                    -MITRE "T1611" `
+                    -CVSSv3Score "8.6" `
+                    -TechnicalImpact "CVE-2019-5736 allows a container to overwrite the host runc binary, achieving container escape and root code execution on the host."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # CTR-011: Docker version CVE checks
+    # ----------------------------------------------------------------
+    foreach ($vFile in $runcVersionFiles) {
+        $content = (Read-ArtifactContent -Path $vFile.FullName) -join "`n"
+        if ($content -match 'Docker\s+version\s+(\d+\.\d+\.\d+)') {
+            $dockerVersion = $Matches[1]
+            $parts = $dockerVersion.Split('.')
+            $major = [int]$parts[0]; $minor = [int]$parts[1]; $patch = [int]$parts[2]
+
+            # CVE-2021-41091: Docker < 20.10.9
+            if ($major -lt 20 -or ($major -eq 20 -and $minor -lt 10) -or ($major -eq 20 -and $minor -eq 10 -and $patch -lt 9)) {
+                $findings.Add((New-Finding -Id "CTR-011" -Severity "Critical" -Category "Container Security" `
+                    -Title "CVE-2021-41091: Vulnerable Docker version $dockerVersion" `
+                    -Description "Docker version $dockerVersion is vulnerable to CVE-2021-41091, a directory traversal that allows unprivileged users to traverse and execute programs within the data directory." `
+                    -ArtifactPath $vFile.FullName `
+                    -Evidence @("Docker version: $dockerVersion", "CVE: CVE-2021-41091") `
+                    -Recommendation "Upgrade Docker to version 20.10.9 or later." `
+                    -MITRE "T1611" `
+                    -CVSSv3Score "7.8" `
+                    -TechnicalImpact "CVE-2021-41091 allows local unprivileged users to access container file systems and execute SUID binaries from within containers."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # CTR-013: Kubernetes service account token accessible (in container)
+    # ----------------------------------------------------------------
+    if ($isContainer) {
+        $k8sTokenPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/var/run/secrets/kubernetes.io/serviceaccount/token'
+        if (Test-Path $k8sTokenPath -PathType Leaf) {
+            $findings.Add((New-Finding -Id "CTR-013" -Severity "High" -Category "Container Security" `
+                -Title "Kubernetes service account token accessible inside container" `
+                -Description "A Kubernetes service account token is mounted in this container at the default path. This token can be used to interact with the K8s API." `
+                -ArtifactPath "/var/run/secrets/kubernetes.io/serviceaccount/token" `
+                -Evidence @("Service account token found in container") `
+                -Recommendation "Disable automatic mounting with automountServiceAccountToken: false. Apply RBAC policies to limit token permissions." `
+                -MITRE "T1552.001" `
+                -CVSSv3Score "7.5" `
+                -TechnicalImpact "Kubernetes service account tokens inside containers can be exploited for lateral movement, secret access, and potential cluster compromise."))
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # CTR-014: Container security profile (AppArmor/Seccomp) not applied
+    # ----------------------------------------------------------------
+    if ($isContainer) {
+        $procStatus = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/proc/1/status'
+        if (Test-Path $procStatus -PathType Leaf) {
+            $statusContent = (Read-ArtifactContent -Path $procStatus) -join "`n"
+
+            # Check Seccomp
+            if ($statusContent -match 'Seccomp:\s*0') {
+                $findings.Add((New-Finding -Id "CTR-014" -Severity "Medium" -Category "Container Security" `
+                    -Title "Container running without Seccomp profile" `
+                    -Description "The container's init process (PID 1) has Seccomp mode 0 (disabled). No syscall filtering is applied." `
+                    -ArtifactPath "/proc/1/status" `
+                    -Evidence @("Seccomp: 0 (disabled)") `
+                    -Recommendation "Apply a Seccomp profile to restrict available syscalls. Use Docker's default Seccomp profile at minimum." `
+                    -MITRE "T1611" `
+                    -CVSSv3Score "5.3" `
+                    -TechnicalImpact "Containers without Seccomp profiles can use all syscalls, increasing the kernel attack surface for container escape."))
+            }
+        }
+
+        # Check for AppArmor
+        $apparmorProc = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/proc/1/attr/current'
+        if (Test-Path $apparmorProc -PathType Leaf) {
+            $aaProfile = (Read-ArtifactContent -Path $apparmorProc) -join ''
+            if ($aaProfile -match 'unconfined' -or [string]::IsNullOrWhiteSpace($aaProfile)) {
+                $findings.Add((New-Finding -Id "CTR-014" -Severity "Medium" -Category "Container Security" `
+                    -Title "Container running without AppArmor confinement" `
+                    -Description "The container is running in AppArmor 'unconfined' mode, providing no mandatory access control restrictions." `
+                    -ArtifactPath "/proc/1/attr/current" `
+                    -Evidence @("AppArmor profile: unconfined") `
+                    -Recommendation "Apply an AppArmor profile to the container. Use Docker's default AppArmor profile at minimum." `
+                    -MITRE "T1611" `
+                    -CVSSv3Score "5.3" `
+                    -TechnicalImpact "Containers without AppArmor confinement have unrestricted file and process access, increasing the risk of container escape."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # CTR-015: Container with writable overlay filesystem
+    # ----------------------------------------------------------------
+    if ($isContainer) {
+        $mountsPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/proc/1/mounts'
+        if (-not (Test-Path $mountsPath)) {
+            $mountsPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/proc/mounts'
+        }
+
+        if (Test-Path $mountsPath -PathType Leaf) {
+            $mounts = Read-ArtifactContent -Path $mountsPath
+            foreach ($mount in $mounts) {
+                # Check for writable sensitive host mounts
+                if ($mount -match 'overlay.*upperdir=(/var/lib/docker|/var/lib/containerd)' -and $mount -notmatch '\bro\b') {
+                    $findings.Add((New-Finding -Id "CTR-015" -Severity "High" -Category "Container Security" `
+                        -Title "Container overlay filesystem writable" `
+                        -Description "The container's overlay filesystem has a writable upper directory in the Docker/containerd data path." `
+                        -ArtifactPath "/proc/1/mounts" `
+                        -Evidence @($mount.Trim()) `
+                        -Recommendation "Use read-only root filesystem where possible (--read-only flag)." `
+                        -MITRE "T1611" `
+                        -CVSSv3Score "6.5" `
+                        -TechnicalImpact "Writable overlay filesystem may allow modifications that persist across container restarts or affect other containers sharing the same image layers."))
+                    break
+                }
+            }
+        }
+    }
+
     return $findings.ToArray()
 }

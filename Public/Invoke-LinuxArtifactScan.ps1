@@ -125,6 +125,9 @@ function Invoke-LinuxArtifactScan {
         @{ Name = 'Filesystem';     Function = 'Invoke-FilesystemAnalyzer';     Category = 'Filesystem' }
         @{ Name = 'LogIntegrity';   Function = 'Invoke-LogIntegrityAnalyzer';   Category = 'Log Analysis' }
         @{ Name = 'Container';      Function = 'Invoke-ContainerAnalyzer';      Category = 'Container Security' }
+        @{ Name = 'CredentialScan'; Function = 'Invoke-CredentialScanAnalyzer'; Category = 'Credential Exposure' }
+        @{ Name = 'CloudSecurity';  Function = 'Invoke-CloudSecurityAnalyzer';  Category = 'Cloud Security' }
+        @{ Name = 'Socket';         Function = 'Invoke-SocketAnalyzer';         Category = 'Socket Security' }
     )
 
     # Filter analyzers

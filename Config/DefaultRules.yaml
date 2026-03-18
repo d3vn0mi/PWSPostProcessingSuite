@@ -581,3 +581,215 @@ auth_log_thresholds:
   off_hours_start: 22
   off_hours_end: 6
   max_unique_users_per_ip: 3
+
+# ============================================================
+# Credential and API key patterns (inspired by LinPEAS)
+# ============================================================
+credential_patterns:
+  aws_access_key:
+    pattern: 'AKIA[0-9A-Z]{16}'
+    name: "AWS Access Key ID"
+    severity: Critical
+    mitre: "T1552.001"
+  aws_secret_key:
+    pattern: '["\x27]?(?:aws)?_?secret_?(?:access)?_?key["\x27]?\s*[:=]\s*["\x27]?[A-Za-z0-9/+=]{40}'
+    name: "AWS Secret Access Key"
+    severity: Critical
+    mitre: "T1552.001"
+  gcp_service_account:
+    pattern: '"type"\s*:\s*"service_account"'
+    name: "GCP Service Account Key"
+    severity: Critical
+    mitre: "T1552.001"
+  azure_client_secret:
+    pattern: '["\x27]?(?:client|azure)[-_]?secret["\x27]?\s*[:=]'
+    name: "Azure Client Secret"
+    severity: Critical
+    mitre: "T1552.001"
+  github_token:
+    pattern: 'gh[pousr]_[A-Za-z0-9_]{36,255}'
+    name: "GitHub Personal Access Token"
+    severity: Critical
+    mitre: "T1528"
+  gitlab_token:
+    pattern: 'glpat-[A-Za-z0-9\-]{20,}'
+    name: "GitLab Personal Access Token"
+    severity: Critical
+    mitre: "T1528"
+  slack_token:
+    pattern: 'xox[baprs]-[0-9]{10,13}-[0-9]{10,13}-[a-zA-Z0-9]{24,34}'
+    name: "Slack API Token"
+    severity: High
+    mitre: "T1528"
+  generic_api_key:
+    pattern: '["\x27]?api[-_]?key["\x27]?\s*[:=]\s*["\x27]?[A-Za-z0-9]{16,}'
+    name: "Generic API Key"
+    severity: Medium
+    mitre: "T1552.001"
+  private_key_header:
+    pattern: '-----BEGIN (RSA |EC |DSA |OPENSSH )?PRIVATE KEY-----'
+    name: "Private Key File"
+    severity: High
+    mitre: "T1552.004"
+  jwt_token:
+    pattern: 'eyJ[A-Za-z0-9-_]+\.eyJ[A-Za-z0-9-_]+'
+    name: "JWT Token"
+    severity: Medium
+    mitre: "T1528"
+  connection_string:
+    pattern: '(mysql|postgres|mongodb|redis|mssql)://[^:]+:[^@]+@'
+    name: "Database Connection String with Password"
+    severity: High
+    mitre: "T1552.001"
+  password_in_config:
+    pattern: '(?i)(password|passwd|pwd|secret)\s*[:=]\s*["\x27]?[^\s"#\x27]{4,}'
+    name: "Password in Configuration"
+    severity: High
+    mitre: "T1552.001"
+  heroku_api_key:
+    pattern: '[hH][eE][rR][oO][kK][uU].*[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}'
+    name: "Heroku API Key"
+    severity: High
+    mitre: "T1528"
+  stripe_key:
+    pattern: '(?:r|s)k_live_[0-9a-zA-Z]{24,}'
+    name: "Stripe Secret Key"
+    severity: Critical
+    mitre: "T1528"
+
+# ============================================================
+# Sensitive groups for privilege escalation
+# ============================================================
+sensitive_groups:
+  - docker
+  - lxd
+  - lxc
+  - disk
+  - adm
+  - shadow
+  - video
+  - root
+  - sudo
+  - wheel
+  - kmem
+  - staff
+
+# ============================================================
+# Dangerous Linux capabilities
+# ============================================================
+dangerous_capabilities:
+  - cap_sys_admin
+  - cap_sys_ptrace
+  - cap_dac_override
+  - cap_dac_read_search
+  - cap_setuid
+  - cap_setgid
+  - cap_net_raw
+  - cap_net_bind_service
+  - cap_chown
+  - cap_fowner
+  - cap_sys_module
+  - cap_net_admin
+
+# ============================================================
+# Cloud environment indicators
+# ============================================================
+cloud_indicators:
+  aws_files:
+    - '.aws/credentials'
+    - '.aws/config'
+    - '/etc/boto.cfg'
+    - '.boto'
+  gcp_files:
+    - '.config/gcloud/credentials.db'
+    - '.config/gcloud/access_tokens.db'
+    - '.config/gcloud/application_default_credentials.json'
+    - '/etc/google-cloud/'
+  azure_files:
+    - '.azure/accessTokens.json'
+    - '.azure/azureProfile.json'
+    - '/etc/kubernetes/azure.json'
+  k8s_files:
+    - '/var/run/secrets/kubernetes.io/serviceaccount/token'
+    - '/var/run/secrets/kubernetes.io/serviceaccount/ca.crt'
+    - '.kube/config'
+
+# ============================================================
+# Kernel hardening parameters (LinPEAS-inspired)
+# ============================================================
+kernel_hardening_params:
+  - name: 'kernel.kptr_restrict'
+    bad_value: '0'
+    severity: Medium
+    title: "Kernel pointer addresses exposed"
+    mitre: "T1082"
+    recommendation: "Set kernel.kptr_restrict = 1 or 2 to hide kernel pointers"
+  - name: 'kernel.dmesg_restrict'
+    bad_value: '0'
+    severity: Medium
+    title: "Kernel log readable by unprivileged users"
+    mitre: "T1082"
+    recommendation: "Set kernel.dmesg_restrict = 1 to restrict dmesg access"
+  - name: 'kernel.yama.ptrace_scope'
+    bad_value: '0'
+    severity: Medium
+    title: "Unrestricted ptrace allowed"
+    mitre: "T1055"
+    recommendation: "Set kernel.yama.ptrace_scope = 1 or higher to restrict ptrace"
+  - name: 'kernel.perf_event_paranoid'
+    bad_value: '0'
+    severity: Medium
+    title: "Perf events accessible to unprivileged users"
+    mitre: "T1082"
+    recommendation: "Set kernel.perf_event_paranoid = 2 or 3"
+  - name: 'vm.mmap_min_addr'
+    bad_value: '0'
+    severity: Low
+    title: "Null page mapping allowed (mmap_min_addr = 0)"
+    mitre: "T1068"
+    recommendation: "Set vm.mmap_min_addr = 65536 to prevent null-deref exploitation"
+  - name: 'kernel.unprivileged_userns_clone'
+    bad_value: '1'
+    severity: Medium
+    title: "Unprivileged user namespaces enabled"
+    mitre: "T1611"
+    recommendation: "Set kernel.unprivileged_userns_clone = 0 if containers are not needed"
+  - name: 'kernel.unprivileged_bpf_disabled'
+    bad_value: '0'
+    severity: Medium
+    title: "Unprivileged eBPF access enabled"
+    mitre: "T1068"
+    recommendation: "Set kernel.unprivileged_bpf_disabled = 1 to restrict eBPF"
+
+# ============================================================
+# Security protection frameworks
+# ============================================================
+security_protections:
+  - name: 'AppArmor'
+    config_path: '/etc/apparmor.d/'
+    status_file: '/sys/module/apparmor/parameters/enabled'
+  - name: 'SELinux'
+    config_path: '/etc/selinux/config'
+  - name: 'Seccomp'
+    status_check: '/proc/*/status'
+
+# ============================================================
+# Known C2 and suspicious network ports
+# ============================================================
+c2_ports:
+  - 4444
+  - 5555
+  - 1337
+  - 31337
+  - 6666
+  - 6667
+  - 9001
+  - 9002
+  - 1234
+  - 12345
+  - 54321
+  - 3389
+  - 5900
+  - 8443
+  - 4443
+  - 2222

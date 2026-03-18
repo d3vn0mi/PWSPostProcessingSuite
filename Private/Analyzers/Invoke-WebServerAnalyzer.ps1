@@ -115,5 +115,116 @@ function Invoke-WebServerAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # WEB-005: PHP configuration weaknesses
+    # ----------------------------------------------------------------
+    $phpIniPaths = @('/etc/php', '/etc/php5', '/etc/php7.0', '/etc/php7.4', '/etc/php8.0', '/etc/php8.1', '/etc/php8.2', '/etc/php8.3')
+    foreach ($phpPath in $phpIniPaths) {
+        $phpFiles = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath $phpPath -Filter 'php.ini' -Recurse
+        foreach ($phpFile in $phpFiles) {
+            $lines = Read-ArtifactContent -Path $phpFile.FullName
+            $content = $lines -join "`n"
+            $relativePath = $phpFile.FullName.Replace($EvidencePath, '').TrimStart('/\')
+            $phpIssues = @()
+
+            if ($content -match '(?m)^\s*allow_url_include\s*=\s*On') {
+                $phpIssues += "allow_url_include = On (remote file inclusion risk)"
+            }
+            if ($content -match '(?m)^\s*allow_url_fopen\s*=\s*On') {
+                $phpIssues += "allow_url_fopen = On (remote file access enabled)"
+            }
+            if ($content -match '(?m)^\s*display_errors\s*=\s*On') {
+                $phpIssues += "display_errors = On (information disclosure)"
+            }
+            if ($content -match '(?m)^\s*expose_php\s*=\s*On') {
+                $phpIssues += "expose_php = On (PHP version disclosure)"
+            }
+            if ($content -match '(?m)^\s*register_globals\s*=\s*On') {
+                $phpIssues += "register_globals = On (critical - variable injection)"
+            }
+            if ($content -match '(?m)^\s*enable_dl\s*=\s*On') {
+                $phpIssues += "enable_dl = On (dynamic extension loading)"
+            }
+
+            if ($phpIssues.Count -gt 0) {
+                $severity = if ($phpIssues -match 'allow_url_include|register_globals') { 'High' } else { 'Medium' }
+                $findings.Add((New-Finding -Id "WEB-005" -Severity $severity -Category "Web Server" `
+                    -Title "PHP configuration weaknesses in $relativePath ($($phpIssues.Count) issues)" `
+                    -Description "PHP configuration file contains $($phpIssues.Count) security weakness(es) that increase the application attack surface." `
+                    -ArtifactPath $phpFile.FullName `
+                    -Evidence $phpIssues `
+                    -Recommendation "Disable allow_url_include, display_errors, expose_php. Set allow_url_fopen=Off unless required." `
+                    -MITRE "T1190" `
+                    -CVSSv3Score $(if ($severity -eq 'High') { '7.5' } else { '5.3' }) `
+                    -TechnicalImpact "Insecure PHP settings enable remote file inclusion, information disclosure, or other web application attacks."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # WEB-006: .htaccess files with weak authentication
+    # ----------------------------------------------------------------
+    $webRoots = @('/var/www', '/srv/www')
+    foreach ($webRoot in $webRoots) {
+        $htaccessFiles = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath $webRoot -Filter '.htaccess' -Recurse
+        foreach ($htFile in $htaccessFiles) {
+            $content = (Read-ArtifactContent -Path $htFile.FullName) -join "`n"
+            $relativePath = $htFile.FullName.Replace($EvidencePath, '').TrimStart('/\')
+
+            if ($content -match 'AuthType\s+Basic') {
+                $findings.Add((New-Finding -Id "WEB-006" -Severity "Medium" -Category "Web Server" `
+                    -Title "Basic authentication in .htaccess: $relativePath" `
+                    -Description ".htaccess file uses Basic authentication which transmits credentials in base64 (easily decoded). Should use Digest or external auth." `
+                    -ArtifactPath $htFile.FullName `
+                    -Evidence @("File: $relativePath", "AuthType Basic detected") `
+                    -Recommendation "Use AuthType Digest or implement application-level authentication. Ensure HTTPS is enforced." `
+                    -MITRE "T1078" `
+                    -CVSSv3Score "5.3" `
+                    -TechnicalImpact "Basic authentication transmits credentials in easily-decoded base64, enabling credential interception on non-HTTPS connections."))
+            }
+
+            # Check for Require all granted (open access override)
+            if ($content -match 'Require\s+all\s+granted' -and $content -match 'Allow\s+from\s+all') {
+                $findings.Add((New-Finding -Id "WEB-006" -Severity "Low" -Category "Web Server" `
+                    -Title "Open access in .htaccess: $relativePath" `
+                    -Description ".htaccess grants access to all without restrictions." `
+                    -ArtifactPath $htFile.FullName `
+                    -Evidence @("File: $relativePath", "Require all granted / Allow from all") `
+                    -Recommendation "Review access controls. Restrict access to authorized IPs or users where appropriate." `
+                    -MITRE "T1190" `
+                    -CVSSv3Score "3.1" `
+                    -TechnicalImpact "Unrestricted access in .htaccess may expose sensitive directories or override parent directory restrictions."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # WEB-007: Web server running as root
+    # ----------------------------------------------------------------
+    $processFiles = @()
+    foreach ($pattern in @('ps_*', 'processes*', 'ps-aux*')) {
+        $files = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter $pattern
+        foreach ($f in $files) { $processFiles += $f }
+    }
+
+    foreach ($pFile in $processFiles) {
+        $lines = Read-ArtifactContent -Path $pFile.FullName
+        foreach ($line in $lines) {
+            if ($line -match '^\s*root\s+.*\b(nginx|apache2|httpd|lighttpd)\b' -and $line -notmatch 'master process') {
+                # Web server worker running as root (not just the master process)
+                $findings.Add((New-Finding -Id "WEB-007" -Severity "High" -Category "Web Server" `
+                    -Title "Web server worker process running as root" `
+                    -Description "A web server worker process is running as root. Web server workers should run as an unprivileged user (www-data, nginx, apache)." `
+                    -ArtifactPath $pFile.FullName `
+                    -Evidence @($line.Trim()) `
+                    -Recommendation "Configure the web server to run worker processes as an unprivileged user (e.g., www-data)." `
+                    -MITRE "T1190" `
+                    -CVSSv3Score "8.1" `
+                    -TechnicalImpact "Web server workers running as root means any web application vulnerability leads to immediate root compromise."))
+                break
+            }
+        }
+    }
+
     return $findings.ToArray()
 }

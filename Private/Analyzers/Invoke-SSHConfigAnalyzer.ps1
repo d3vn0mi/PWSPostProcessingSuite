@@ -338,6 +338,74 @@ function Invoke-SSHConfigAnalyzer {
     }
 
     # ----------------------------------------------------------------
+    # SSH-009 (Medium): UsePAM no — bypasses PAM security controls
+    # ----------------------------------------------------------------
+    $usePAM = & $getSettingValue 'UsePAM'
+    if ($null -ne $usePAM -and $usePAM.Value -ieq 'no') {
+        $findings.Add((New-Finding `
+            -Id 'SSH-009' `
+            -Severity 'Medium' `
+            -Category $analyzerCategory `
+            -Title 'PAM authentication disabled for SSH (UsePAM=no)' `
+            -Description "UsePAM is set to 'no' in $($usePAM.Source). This disables PAM session setup, account management, and password policies for SSH connections." `
+            -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $usePAM.Source })[0].Path) `
+            -Evidence @($usePAM.Line) `
+            -Recommendation "Set UsePAM to 'yes' to leverage PAM security controls including account lockout, password policies, and session management." `
+            -MITRE $mitreSSH `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'Disabling PAM bypasses account lockout policies, password complexity requirements, and session management controls.'
+        ))
+    }
+
+    # ----------------------------------------------------------------
+    # SSH-010 (Medium): GatewayPorts yes — port forwarding risk
+    # ----------------------------------------------------------------
+    $gatewayPorts = & $getSettingValue 'GatewayPorts'
+    if ($null -ne $gatewayPorts -and $gatewayPorts.Value -ieq 'yes') {
+        $findings.Add((New-Finding `
+            -Id 'SSH-010' `
+            -Severity 'Medium' `
+            -Category $analyzerCategory `
+            -Title 'SSH GatewayPorts enabled' `
+            -Description "GatewayPorts is set to 'yes' in $($gatewayPorts.Source). Remote port forwards will listen on all interfaces, not just localhost." `
+            -ArtifactPath (($configFiles | Where-Object { $_.LinuxPath -eq $gatewayPorts.Source })[0].Path) `
+            -Evidence @($gatewayPorts.Line) `
+            -Recommendation "Set GatewayPorts to 'no' or 'clientspecified' to prevent forwarded ports from listening on external interfaces." `
+            -MITRE $mitreSSH `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'GatewayPorts allows SSH tunnels to bind on all interfaces, potentially exposing internal services to external networks.'
+        ))
+    }
+
+    # ----------------------------------------------------------------
+    # SSH-011 (Medium): AllowTcpForwarding with PermitRootLogin
+    # ----------------------------------------------------------------
+    $tcpForwarding = & $getSettingValue 'AllowTcpForwarding'
+    $tcpFwdEnabled = ($null -eq $tcpForwarding -or $tcpForwarding.Value -ieq 'yes')  # default is yes
+    $rootLoginEnabled2 = ($null -ne $permitRootLogin -and $permitRootLogin.Value -ieq 'yes')
+
+    if ($tcpFwdEnabled -and $rootLoginEnabled2) {
+        $evidence = [System.Collections.Generic.List[string]]::new()
+        if ($null -ne $tcpForwarding) { $evidence.Add($tcpForwarding.Line) }
+        else { $evidence.Add("AllowTcpForwarding: yes (default)") }
+        $evidence.Add($permitRootLogin.Line)
+
+        $findings.Add((New-Finding `
+            -Id 'SSH-011' `
+            -Severity 'Medium' `
+            -Category $analyzerCategory `
+            -Title 'TCP forwarding enabled with root login permitted' `
+            -Description "Both AllowTcpForwarding and PermitRootLogin are enabled. An attacker with root SSH access can create tunnels to internal services." `
+            -ArtifactPath ($configFiles[0].Path) `
+            -Evidence @($evidence) `
+            -Recommendation "Disable either AllowTcpForwarding or PermitRootLogin. Use restricted shells or ForceCommand to limit forwarding." `
+            -MITRE $mitreSSH `
+            -CVSSv3Score '5.3' `
+            -TechnicalImpact 'TCP forwarding with root login allows creating network tunnels to reach internal services, enabling lateral movement and pivoting.'
+        ))
+    }
+
+    # ----------------------------------------------------------------
     # Informational summary: Match blocks detected
     # ----------------------------------------------------------------
     if ($matchBlocks.Count -gt 0) {
