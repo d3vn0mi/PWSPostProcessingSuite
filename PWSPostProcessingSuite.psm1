@@ -2,10 +2,11 @@
 
 <#
 .SYNOPSIS
-    PWSPostProcessingSuite - Linux Forensic Artifact Analysis Module
+    PWSPostProcessingSuite - Cross-Platform Forensic Artifact Analysis Module
 .DESCRIPTION
-    Analyzes collected Linux system artifacts for security issues,
+    Analyzes collected Linux and Windows system artifacts for security issues,
     misconfigurations, persistence mechanisms, and indicators of compromise.
+    Supports both offline post-processing and active live-system scanning.
 #>
 
 # Module-scoped variables
@@ -52,10 +53,24 @@ catch {
     Write-Warning "Failed to load default rules: $_"
 }
 
+# Load Windows rules and merge into defaults
+try {
+    $winRulesPath = Join-Path (Join-Path $PSScriptRoot 'Config') 'WindowsDefaultRules.yaml'
+    if (Test-Path $winRulesPath) {
+        $Script:WindowsDefaultRules = Import-YamlConfig -Path $winRulesPath
+    }
+}
+catch {
+    Write-Warning "Failed to load Windows default rules: $_"
+}
+
 # Export public functions
 Export-ModuleMember -Function @(
     'Invoke-LinuxArtifactScan',
+    'Invoke-LinuxLiveScan',
     'Invoke-BatchLinuxScan',
+    'Invoke-WindowsArtifactScan',
+    'Invoke-WindowsLiveScan',
     'Get-ScanReport',
     'Import-ScanRules'
 )

@@ -1,6 +1,8 @@
 # PWSPostProcessingSuite
 
-A PowerShell 7+ module for post-processing and security analysis of collected Linux system artifacts. Designed for DFIR (Digital Forensics & Incident Response) workflows, it scans evidence folders containing Linux filesystem artifacts and identifies security issues, misconfigurations, persistence mechanisms, and indicators of compromise.
+**By [d3vn0mi](https://github.com/d3vn0mi)**
+
+A PowerShell 7+ module for post-processing and security analysis of collected Linux and Windows system artifacts. Designed for DFIR (Digital Forensics & Incident Response) workflows, it scans evidence folders containing filesystem artifacts and identifies security issues, misconfigurations, persistence mechanisms, and indicators of compromise.
 
 ## Features
 
@@ -127,6 +129,10 @@ Install-Module Pester -MinimumVersion 5.0 -Scope CurrentUser
 Invoke-Pester ./Tests/ -Output Detailed
 ```
 
+## Author
+
+**d3vn0mi** - [GitHub](https://github.com/d3vn0mi)
+
 ## License
 
-See LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -575,10 +575,18 @@ Describe 'Analyzer Integration Tests' {
         }
 
         It 'Should detect NOPASSWD:ALL rule for john as Critical (SUDO-001)' {
-            $nopasswd = $script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-001' }
+            $nopasswd = @($script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-001' -and $_.Severity -eq 'Critical' })
             $nopasswd | Should -Not -BeNullOrEmpty
-            $nopasswd.Severity | Should -Be 'Critical'
             ($nopasswd.Evidence -join ' ') | Should -BeLike '*NOPASSWD*'
+            ($nopasswd.Title -join ' ') | Should -BeLike '*john*'
+        }
+
+        It 'Should treat root NOPASSWD as Informational (SUDO-001)' {
+            # root already has UID 0 - NOPASSWD is redundant, not a security issue
+            $rootRules = @($script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-001' -and $_.Title -like '*root*' })
+            if ($rootRules.Count -gt 0) {
+                $rootRules[0].Severity | Should -Be 'Informational'
+            }
         }
 
         It 'Should detect dangerous binaries (vim, python3) in sudoers as High (SUDO-003)' {
@@ -589,9 +597,19 @@ Describe 'Analyzer Integration Tests' {
             ($dangerousTitles -match 'vim' -or $dangerousTitles -match 'python') | Should -BeTrue
         }
 
-        It 'Should detect ALL command access grants as High (SUDO-002)' {
-            $allAccess = $script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-002' }
+        It 'Should detect ALL command access grants with context-aware severity (SUDO-002)' {
+            $allAccess = @($script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-002' })
             $allAccess | Should -Not -BeNullOrEmpty
+            # root ALL=(ALL:ALL) ALL should be Informational (standard default)
+            $rootAll = $allAccess | Where-Object { $_.Title -like '*root*' }
+            if ($rootAll) {
+                $rootAll.Severity | Should -Be 'Informational'
+            }
+            # %admin/%sudo groups should be Low (standard config with password)
+            $groupAll = $allAccess | Where-Object { $_.Title -like '*%admin*' -or $_.Title -like '*%sudo*' }
+            if ($groupAll) {
+                ($groupAll | ForEach-Object { $_.Severity }) | Should -Contain 'Low'
+            }
         }
 
         It 'Should include an informational sudoers summary (SUDO-005)' {
@@ -601,8 +619,21 @@ Describe 'Analyzer Integration Tests' {
         }
 
         It 'Should reference MITRE T1548.003 for sudo findings' {
-            $nopasswd = $script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-001' }
-            $nopasswd.MITRE | Should -Be 'T1548.003'
+            $nopasswd = @($script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-001' -and $_.Severity -eq 'Critical' })
+            $nopasswd | Should -Not -BeNullOrEmpty
+            $nopasswd[0].MITRE | Should -Be 'T1548.003'
+        }
+
+        It 'Should detect missing use_pty directive (SUDO-006)' {
+            $usePty = $script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-006' }
+            $usePty | Should -Not -BeNullOrEmpty
+            $usePty.Severity | Should -Be 'Medium'
+        }
+
+        It 'Should detect missing logfile directive (SUDO-007)' {
+            $logfile = $script:sudoFindings | Where-Object { $_.Id -eq 'SUDO-007' }
+            $logfile | Should -Not -BeNullOrEmpty
+            $logfile.Severity | Should -Be 'Low'
         }
     }
 
