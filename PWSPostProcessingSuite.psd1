@@ -5,12 +5,14 @@
     Author            = 'd3vn0mi'
     CompanyName       = 'PWSPostProcessingSuite'
     Copyright         = '(c) 2025 d3vn0mi. All rights reserved.'
-    Description       = 'Post-processing analysis suite for Linux forensic artifacts. Supports both offline analysis of collected evidence and active live-system scanning with built-in artifact collection.'
+    Description       = 'Cross-platform security analysis suite for Linux and Windows forensic artifacts. Supports offline analysis of collected evidence and active live-system scanning with built-in artifact collection.'
     PowerShellVersion = '5.1'
     FunctionsToExport = @(
         'Invoke-LinuxArtifactScan',
         'Invoke-LinuxLiveScan',
         'Invoke-BatchLinuxScan',
+        'Invoke-WindowsArtifactScan',
+        'Invoke-WindowsLiveScan',
         'Get-ScanReport',
         'Import-ScanRules'
     )
@@ -19,7 +21,7 @@
     AliasesToExport    = @()
     PrivateData        = @{
         PSData = @{
-            Tags       = @('Linux', 'Forensics', 'Security', 'IncidentResponse', 'DFIR', 'PostProcessing', 'LiveScan', 'ActiveMode')
+            Tags       = @('Linux', 'Windows', 'Forensics', 'Security', 'IncidentResponse', 'DFIR', 'PostProcessing', 'LiveScan', 'ActiveMode')
             LicenseUri = ''
             ProjectUri = ''
         }

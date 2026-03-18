@@ -1,0 +1,417 @@
+# PWSPostProcessingSuite - Windows Default Detection Rules
+# Version: 1.0
+# These rules define patterns, thresholds, and known-bad indicators
+# for Windows security artifact analysis.
+
+metadata:
+  version: "1.0"
+  description: "Default detection rules for Windows security analysis"
+  last_updated: "2026-03-18"
+
+# ============================================================
+# Registry persistence locations (autorun)
+# ============================================================
+registry_persistence_keys:
+  critical:
+    - path: 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+      description: "Machine-level Run key"
+    - path: 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
+      description: "Machine-level RunOnce key"
+    - path: 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+      description: "User-level Run key"
+    - path: 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce'
+      description: "User-level RunOnce key"
+  high:
+    - path: 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+      values: ['Shell', 'Userinit', 'Taskman']
+    - path: 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager'
+      values: ['BootExecute']
+    - path: 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Image File Execution Options'
+      description: "IFEO debugger hijacking"
+
+# ============================================================
+# Suspicious scheduled task patterns
+# ============================================================
+suspicious_task_patterns:
+  - pattern: 'powershell.*-enc'
+    severity: Critical
+    mitre: "T1059.001"
+    name: "Encoded PowerShell in scheduled task"
+  - pattern: 'cmd.*/c.*powershell'
+    severity: High
+    mitre: "T1059.001"
+    name: "CMD launching PowerShell"
+  - pattern: '\\AppData\\Local\\Temp\\'
+    severity: High
+    mitre: "T1053.005"
+    name: "Task executing from user temp directory"
+  - pattern: '\\Users\\Public\\'
+    severity: High
+    mitre: "T1053.005"
+    name: "Task executing from Public folder"
+  - pattern: 'mshta'
+    severity: Critical
+    mitre: "T1218.005"
+    name: "MSHTA execution in task"
+  - pattern: 'regsvr32.*\/s.*\/i'
+    severity: Critical
+    mitre: "T1218.010"
+    name: "Regsvr32 scriptlet in task"
+  - pattern: 'rundll32'
+    severity: Medium
+    mitre: "T1218.011"
+    name: "Rundll32 in scheduled task"
+  - pattern: 'certutil.*-urlcache'
+    severity: Critical
+    mitre: "T1105"
+    name: "Certutil download in task"
+  - pattern: 'bitsadmin.*/transfer'
+    severity: High
+    mitre: "T1105"
+    name: "BITSAdmin transfer in task"
+  - pattern: 'wscript|cscript'
+    severity: Medium
+    mitre: "T1059.005"
+    name: "Script host in scheduled task"
+
+# ============================================================
+# Suspicious service configurations
+# ============================================================
+suspicious_service_patterns:
+  - pattern: '\\Temp\\'
+    severity: Critical
+    mitre: "T1543.003"
+    name: "Service binary in Temp directory"
+  - pattern: '\\AppData\\'
+    severity: High
+    mitre: "T1543.003"
+    name: "Service binary in AppData"
+  - pattern: '\\Users\\Public\\'
+    severity: High
+    mitre: "T1543.003"
+    name: "Service binary in Public folder"
+  - pattern: '\\ProgramData\\(?!Microsoft)'
+    severity: Medium
+    mitre: "T1543.003"
+    name: "Service binary in non-standard ProgramData"
+  - pattern: 'cmd\.exe\s*/c'
+    severity: High
+    mitre: "T1543.003"
+    name: "Service using cmd.exe"
+  - pattern: 'powershell'
+    severity: Medium
+    mitre: "T1543.003"
+    name: "Service using PowerShell"
+  - pattern: 'msiexec'
+    severity: Medium
+    mitre: "T1218.007"
+    name: "Service using msiexec"
+
+# ============================================================
+# Suspicious PowerShell patterns (for history/script block analysis)
+# ============================================================
+suspicious_powershell_commands:
+  credential_access:
+    - pattern: 'Invoke-Mimikatz'
+      severity: Critical
+      mitre: "T1003.001"
+      name: "Mimikatz invocation"
+    - pattern: 'sekurlsa::logonpasswords'
+      severity: Critical
+      mitre: "T1003.001"
+      name: "Mimikatz logon password dump"
+    - pattern: 'Get-Credential'
+      severity: Low
+      mitre: "T1056.002"
+      name: "Credential prompt"
+    - pattern: 'ConvertTo-SecureString.*-AsPlainText'
+      severity: Medium
+      mitre: "T1552.001"
+      name: "Plaintext password conversion"
+    - pattern: 'Net\.NetworkCredential'
+      severity: Medium
+      mitre: "T1552.001"
+      name: "NetworkCredential usage"
+
+  execution:
+    - pattern: '-[Ee][Nn][Cc][Oo]?[Dd]?[Ee]?[Dd]?[Cc]?[Oo]?[Mm]?[Mm]?[Aa]?[Nn]?[Dd]?\s+'
+      severity: High
+      mitre: "T1059.001"
+      name: "Encoded PowerShell command"
+    - pattern: 'Invoke-Expression'
+      severity: High
+      mitre: "T1059.001"
+      name: "Invoke-Expression (IEX)"
+    - pattern: '\bIEX\b'
+      severity: High
+      mitre: "T1059.001"
+      name: "IEX alias"
+    - pattern: 'DownloadString'
+      severity: Critical
+      mitre: "T1059.001"
+      name: "Remote script download"
+    - pattern: 'DownloadFile'
+      severity: High
+      mitre: "T1105"
+      name: "Remote file download"
+    - pattern: 'Invoke-WebRequest.*\|.*Invoke-Expression'
+      severity: Critical
+      mitre: "T1059.001"
+      name: "Download and execute"
+    - pattern: 'Start-BitsTransfer'
+      severity: Medium
+      mitre: "T1105"
+      name: "BITS transfer"
+    - pattern: 'Add-Type.*-TypeDefinition'
+      severity: Medium
+      mitre: "T1059.001"
+      name: "Inline C# compilation"
+    - pattern: '\[Reflection\.Assembly\]::Load'
+      severity: High
+      mitre: "T1620"
+      name: "Reflective assembly loading"
+
+  reconnaissance:
+    - pattern: 'Get-ADUser'
+      severity: Low
+      mitre: "T1087.002"
+      name: "AD user enumeration"
+    - pattern: 'Get-ADComputer'
+      severity: Low
+      mitre: "T1018"
+      name: "AD computer enumeration"
+    - pattern: 'Get-ADGroup'
+      severity: Low
+      mitre: "T1069.002"
+      name: "AD group enumeration"
+    - pattern: 'Get-DomainUser'
+      severity: High
+      mitre: "T1087.002"
+      name: "PowerView user enumeration"
+    - pattern: 'Invoke-ShareFinder'
+      severity: High
+      mitre: "T1135"
+      name: "PowerView share enumeration"
+    - pattern: 'Invoke-Portscan'
+      severity: High
+      mitre: "T1046"
+      name: "PowerShell port scan"
+    - pattern: 'Test-NetConnection'
+      severity: Low
+      mitre: "T1046"
+      name: "Network connection test"
+
+  evasion:
+    - pattern: 'Set-MpPreference.*-DisableRealtimeMonitoring'
+      severity: Critical
+      mitre: "T1562.001"
+      name: "Defender real-time monitoring disabled"
+    - pattern: 'Set-MpPreference.*-ExclusionPath'
+      severity: High
+      mitre: "T1562.001"
+      name: "Defender exclusion added"
+    - pattern: 'Unblock-File'
+      severity: Medium
+      mitre: "T1553.005"
+      name: "Mark-of-the-Web bypass"
+    - pattern: 'Set-ExecutionPolicy.*Bypass'
+      severity: High
+      mitre: "T1059.001"
+      name: "Execution policy bypass"
+    - pattern: 'Clear-EventLog'
+      severity: Critical
+      mitre: "T1070.001"
+      name: "Event log cleared"
+    - pattern: 'wevtutil\s+cl'
+      severity: Critical
+      mitre: "T1070.001"
+      name: "Event log cleared via wevtutil"
+    - pattern: 'Remove-Item.*-Recurse.*\\Windows\\System32\\winevt'
+      severity: Critical
+      mitre: "T1070.001"
+      name: "Event log files deleted"
+    - pattern: 'AMSI.*Bypass|AmsiUtils|amsiInitFailed'
+      severity: Critical
+      mitre: "T1562.001"
+      name: "AMSI bypass attempt"
+
+  lateral_movement:
+    - pattern: 'Enter-PSSession'
+      severity: Medium
+      mitre: "T1021.006"
+      name: "PS Remoting session"
+    - pattern: 'Invoke-Command.*-ComputerName'
+      severity: Medium
+      mitre: "T1021.006"
+      name: "Remote command execution"
+    - pattern: 'New-PSSession'
+      severity: Medium
+      mitre: "T1021.006"
+      name: "New PS remoting session"
+    - pattern: 'winrm'
+      severity: Low
+      mitre: "T1021.006"
+      name: "WinRM usage"
+
+  persistence:
+    - pattern: 'New-Service'
+      severity: High
+      mitre: "T1543.003"
+      name: "New service creation"
+    - pattern: 'Register-ScheduledTask'
+      severity: High
+      mitre: "T1053.005"
+      name: "Scheduled task registration"
+    - pattern: 'New-ItemProperty.*CurrentVersion\\Run'
+      severity: Critical
+      mitre: "T1547.001"
+      name: "Registry Run key modification"
+    - pattern: 'Register-WmiEvent'
+      severity: Critical
+      mitre: "T1546.003"
+      name: "WMI event subscription"
+
+# ============================================================
+# Security event log IDs of interest
+# ============================================================
+security_event_ids:
+  logon_success: 4624
+  logon_failure: 4625
+  logoff: 4634
+  special_logon: 4672
+  privilege_use: 4673
+  account_created: 4720
+  account_enabled: 4722
+  password_change: 4723
+  account_disabled: 4725
+  account_deleted: 4726
+  group_member_added: 4728
+  group_member_removed: 4729
+  account_locked: 4740
+  policy_change: 4719
+  audit_log_cleared: 1102
+  service_installed: 7045
+
+# ============================================================
+# Suspicious logon types
+# ============================================================
+suspicious_logon_types:
+  - type: 3
+    name: "Network"
+    description: "Network logon (e.g., accessing shared resources)"
+  - type: 10
+    name: "RemoteInteractive"
+    description: "RDP or Terminal Services logon"
+  - type: 4
+    name: "Batch"
+    description: "Batch/scheduled task logon"
+
+# ============================================================
+# Auth log thresholds (Windows)
+# ============================================================
+windows_auth_thresholds:
+  brute_force_attempts: 5
+  brute_force_window_minutes: 10
+  off_hours_start: 22
+  off_hours_end: 6
+  max_unique_users_per_ip: 3
+
+# ============================================================
+# Known suspicious Windows binaries (LOLBins)
+# ============================================================
+lolbins:
+  - name: mshta.exe
+    mitre: "T1218.005"
+  - name: regsvr32.exe
+    mitre: "T1218.010"
+  - name: rundll32.exe
+    mitre: "T1218.011"
+  - name: certutil.exe
+    mitre: "T1105"
+  - name: bitsadmin.exe
+    mitre: "T1105"
+  - name: msiexec.exe
+    mitre: "T1218.007"
+  - name: wmic.exe
+    mitre: "T1047"
+  - name: cmstp.exe
+    mitre: "T1218.003"
+  - name: installutil.exe
+    mitre: "T1218.004"
+  - name: regasm.exe
+    mitre: "T1218.009"
+  - name: regsvcs.exe
+    mitre: "T1218.009"
+  - name: msbuild.exe
+    mitre: "T1127.001"
+  - name: csc.exe
+    mitre: "T1127"
+  - name: verclsid.exe
+    mitre: "T1218"
+  - name: control.exe
+    mitre: "T1218.002"
+  - name: presentationhost.exe
+    mitre: "T1218"
+  - name: bash.exe
+    mitre: "T1202"
+  - name: wscript.exe
+    mitre: "T1059.005"
+  - name: cscript.exe
+    mitre: "T1059.005"
+  - name: forfiles.exe
+    mitre: "T1202"
+  - name: pcalua.exe
+    mitre: "T1202"
+
+# ============================================================
+# Known bad/suspicious ports (same as Linux)
+# ============================================================
+suspicious_network:
+  known_bad_ports:
+    - 4444
+    - 5555
+    - 1337
+    - 31337
+    - 6666
+    - 6667
+    - 9001
+    - 9002
+    - 8443
+    - 1234
+    - 12345
+    - 54321
+
+# Credential patterns (reuse from Linux rules - same patterns apply)
+# The credential_patterns section from DefaultRules.yaml applies to Windows too
+
+# ============================================================
+# Dangerous Windows privileges
+# ============================================================
+dangerous_privileges:
+  - SeDebugPrivilege
+  - SeTcbPrivilege
+  - SeBackupPrivilege
+  - SeRestorePrivilege
+  - SeTakeOwnershipPrivilege
+  - SeLoadDriverPrivilege
+  - SeImpersonatePrivilege
+  - SeAssignPrimaryTokenPrivilege
+  - SeCreateTokenPrivilege
+  - SeMachineAccountPrivilege
+
+# ============================================================
+# RDP security settings
+# ============================================================
+rdp_security:
+  nla_required: true
+  min_encryption_level: 3
+  critical_registry_keys:
+    - path: 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
+      value: 'fDenyTSConnections'
+      expected: 1
+    - path: 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+      value: 'UserAuthentication'
+      expected: 1
+    - path: 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp'
+      value: 'SecurityLayer'
+      expected: 2
