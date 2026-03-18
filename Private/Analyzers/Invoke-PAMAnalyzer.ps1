@@ -109,6 +109,57 @@ function Invoke-PAMAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # PAM-007: Passwords in PAM configuration files
+    # ----------------------------------------------------------------
+    foreach ($pamFile in $pamFiles) {
+        $lines = Read-ArtifactContent -Path $pamFile.FullName
+        $lineNum = 0
+        foreach ($line in $lines) {
+            $lineNum++
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+
+            # Check for hardcoded passwords in PAM configs
+            if ($trimmed -match '(?i)(password|passwd|secret)\s*=\s*\S+' -and $trimmed -notmatch 'pam_unix|pam_pwquality|pam_cracklib') {
+                $findings.Add((New-Finding -Id "PAM-007" -Severity "High" -Category "Authentication" `
+                    -Title "Password found in PAM configuration: $($pamFile.Name)" `
+                    -Description "A hardcoded password or secret was found in PAM configuration file '$($pamFile.Name)' at line $lineNum." `
+                    -ArtifactPath "/etc/pam.d/$($pamFile.Name)" `
+                    -Evidence @("Line ${lineNum}: <password redacted>") `
+                    -Recommendation "Remove hardcoded passwords from PAM configurations. Use secure credential storage mechanisms." `
+                    -MITRE "T1552.001" `
+                    -CVSSv3Score "7.5" `
+                    -TechnicalImpact "Hardcoded passwords in PAM configuration files can be read by any user with access to /etc/pam.d, enabling credential theft."))
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # PAM-008: pam_cap.so loaded (capability-based privilege escalation)
+    # ----------------------------------------------------------------
+    foreach ($pamFile in $pamFiles) {
+        $lines = Read-ArtifactContent -Path $pamFile.FullName
+        $lineNum = 0
+        foreach ($line in $lines) {
+            $lineNum++
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+
+            if ($trimmed -match 'pam_cap\.so') {
+                $findings.Add((New-Finding -Id "PAM-008" -Severity "Medium" -Category "Authentication" `
+                    -Title "pam_cap.so loaded in $($pamFile.Name)" `
+                    -Description "pam_cap.so is configured in '$($pamFile.Name)', enabling capability-based privilege assignment during login. Users may receive elevated capabilities defined in /etc/security/capability.conf." `
+                    -ArtifactPath "/etc/pam.d/$($pamFile.Name)" `
+                    -Evidence @("Line ${lineNum}: $trimmed") `
+                    -Recommendation "Review /etc/security/capability.conf for overly permissive capability assignments. Ensure only authorized users receive elevated capabilities." `
+                    -MITRE "T1548.001" `
+                    -CVSSv3Score "6.5" `
+                    -TechnicalImpact "pam_cap.so assigns Linux capabilities to users at login, potentially granting elevated privileges that bypass standard permission controls."))
+            }
+        }
+    }
+
     # Informational summary
     $findings.Add((New-Finding -Id "PAM-INFO" -Severity "Informational" -Category "Authentication" `
         -Title "PAM configuration summary" `

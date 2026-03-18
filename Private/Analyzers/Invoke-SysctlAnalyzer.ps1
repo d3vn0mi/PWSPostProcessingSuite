@@ -92,6 +92,46 @@ function Invoke-SysctlAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # SYSCTL-013 through 019: Kernel hardening parameters (LinPEAS-inspired)
+    # ----------------------------------------------------------------
+    $hardeningChecks = @(
+        @{ Key = 'kernel.kptr_restrict'; BadValues = @('0'); Severity = 'Medium'; Title = 'Kernel pointer addresses exposed (kptr_restrict=0)'; MITRE = 'T1082'; Recommendation = 'Set kernel.kptr_restrict = 1 or 2 to hide kernel pointers from unprivileged users' }
+        @{ Key = 'kernel.dmesg_restrict'; BadValues = @('0'); Severity = 'Medium'; Title = 'Kernel log readable by unprivileged users (dmesg_restrict=0)'; MITRE = 'T1082'; Recommendation = 'Set kernel.dmesg_restrict = 1 to restrict dmesg access to privileged users' }
+        @{ Key = 'kernel.yama.ptrace_scope'; BadValues = @('0'); Severity = 'Medium'; Title = 'Unrestricted ptrace allowed (ptrace_scope=0)'; MITRE = 'T1055'; Recommendation = 'Set kernel.yama.ptrace_scope = 1 or higher to restrict ptrace to parent processes only' }
+        @{ Key = 'kernel.perf_event_paranoid'; BadValues = @('0', '1', '-1'); Severity = 'Medium'; Title = 'Perf events accessible to unprivileged users'; MITRE = 'T1082'; Recommendation = 'Set kernel.perf_event_paranoid = 2 or 3 to restrict performance event access' }
+        @{ Key = 'vm.mmap_min_addr'; BadValues = @('0'); Severity = 'Low'; Title = 'Null page mapping allowed (mmap_min_addr=0)'; MITRE = 'T1068'; Recommendation = 'Set vm.mmap_min_addr = 65536 to prevent null-pointer dereference exploitation' }
+        @{ Key = 'kernel.unprivileged_userns_clone'; BadValues = @('1'); Severity = 'Medium'; Title = 'Unprivileged user namespaces enabled'; MITRE = 'T1611'; Recommendation = 'Set kernel.unprivileged_userns_clone = 0 unless containers require unprivileged namespaces' }
+        @{ Key = 'kernel.unprivileged_bpf_disabled'; BadValues = @('0'); Severity = 'Medium'; Title = 'Unprivileged eBPF access enabled'; MITRE = 'T1068'; Recommendation = 'Set kernel.unprivileged_bpf_disabled = 1 to prevent eBPF exploitation by unprivileged users' }
+    )
+
+    $hardeningId = 12  # Start after SYSCTL-012
+    foreach ($hcheck in $hardeningChecks) {
+        $hardeningId++
+        if ($settings.ContainsKey($hcheck.Key)) {
+            $currentValue = $settings[$hcheck.Key].Value
+            $source = $settings[$hcheck.Key].Source
+            if ($currentValue -in $hcheck.BadValues) {
+                $cvss = switch ($hcheck.Severity) {
+                    'Critical' { '9.8' }
+                    'High'     { '7.5' }
+                    'Medium'   { '5.3' }
+                    'Low'      { '3.1' }
+                    default    { '' }
+                }
+                $findings.Add((New-Finding -Id "SYSCTL-$('{0:D3}' -f $hardeningId)" -Severity $hcheck.Severity -Category "Kernel Security" `
+                    -Title $hcheck.Title `
+                    -Description "Kernel parameter $($hcheck.Key) is set to '$currentValue'. This weakens kernel security hardening and may assist attackers in exploitation or information gathering." `
+                    -ArtifactPath $source `
+                    -Evidence @("$($hcheck.Key) = $currentValue") `
+                    -Recommendation $hcheck.Recommendation `
+                    -MITRE $hcheck.MITRE `
+                    -CVSSv3Score $cvss `
+                    -TechnicalImpact "Insecure kernel hardening parameter $($hcheck.Key) = $currentValue exposes the system to additional attack vectors."))
+            }
+        }
+    }
+
     # Special check: kernel.core_pattern piping to commands
     if ($settings.ContainsKey('kernel.core_pattern')) {
         $val = $settings['kernel.core_pattern'].Value

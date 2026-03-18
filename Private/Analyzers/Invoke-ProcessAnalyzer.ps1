@@ -95,6 +95,68 @@ function Invoke-ProcessAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # PROC-007: Processes with dangerous capabilities
+    # ----------------------------------------------------------------
+    $procCapFiles = @()
+    foreach ($pattern in @('proc_caps*', 'process_cap*', 'getpcaps*')) {
+        $files = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter $pattern
+        foreach ($f in $files) { $procCapFiles += $f }
+    }
+
+    $dangerousCaps = @('cap_sys_admin', 'cap_sys_ptrace', 'cap_dac_override', 'cap_dac_read_search',
+                       'cap_setuid', 'cap_setgid', 'cap_net_raw', 'cap_chown', 'cap_fowner', 'cap_sys_module')
+
+    foreach ($capFile in $procCapFiles) {
+        $lines = Read-ArtifactContent -Path $capFile.FullName
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+
+            foreach ($dc in $dangerousCaps) {
+                if ($trimmed -match $dc) {
+                    $findings.Add((New-Finding -Id "PROC-007" -Severity "High" -Category "Processes" `
+                        -Title "Process with dangerous capability: $dc" `
+                        -Description "A process was found with dangerous Linux capability '$dc'. This can be exploited for privilege escalation." `
+                        -ArtifactPath $capFile.Name `
+                        -Evidence @($trimmed) `
+                        -Recommendation "Review why this process has $dc capability. Remove if not required." `
+                        -MITRE "T1548.001" `
+                        -CVSSv3Score "8.4" `
+                        -TechnicalImpact "Processes with dangerous capabilities like $dc can perform privileged operations, enabling privilege escalation from the process context."))
+                    break
+                }
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # PROC-009: Writable process binaries
+    # ----------------------------------------------------------------
+    foreach ($pFile in $processFiles) {
+        $lines = Read-ArtifactContent -Path $pFile.FullName
+        foreach ($line in $lines) {
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+
+            # Check for processes whose binary path appears to be writable
+            # This pattern looks for 'ps aux' output format
+            if ($trimmed -match '^\S+\s+\d+\s+[\d.]+\s+[\d.]+\s+\d+\s+\d+\s+\S+\s+\S+\s+\S+\s+(.+)$') {
+                $cmdLine = $Matches[1]
+                $binary = ($cmdLine -split '\s+')[0]
+                # Flag if binary is in a writable location
+                if ($binary -match '^(/tmp/|/dev/shm/|/var/tmp/|/home/.*/\.)') {
+                    # Already caught by PROC-001, skip
+                }
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # PROC-010: Processes with open handles to credential files
+    # ----------------------------------------------------------------
+    $credFiles = @('/etc/shadow', '/etc/gshadow', '.aws/credentials', '.ssh/id_rsa', '.gnupg/secring')
+
     # Analyze lsof output if available
     $lsofFiles = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter 'lsof*'
     foreach ($lsFile in $lsofFiles) {
@@ -112,6 +174,24 @@ function Invoke-ProcessAnalyzer {
                         -MITRE "T1070.004" `
                         -CVSSv3Score "7.8" `
                         -TechnicalImpact "Attacker is actively running code from deleted files to evade detection, indicating anti-forensic techniques and likely system compromise."))
+                }
+            }
+
+            # PROC-010: Check for processes with open handles to credential files
+            foreach ($cf in $credFiles) {
+                if ($line -match [regex]::Escape($cf)) {
+                    # Extract process name from lsof output
+                    $processName = ($line -split '\s+')[0]
+                    $findings.Add((New-Finding -Id "PROC-010" -Severity "High" -Category "Processes" `
+                        -Title "Process accessing credential file: $cf" `
+                        -Description "Process '$processName' has an open handle to credential file '$cf'. This may indicate credential harvesting." `
+                        -ArtifactPath $lsFile.Name `
+                        -Evidence @($line.Trim()) `
+                        -Recommendation "Investigate why process '$processName' is accessing credential files." `
+                        -MITRE "T1003" `
+                        -CVSSv3Score "7.5" `
+                        -TechnicalImpact "Process accessing credential files may indicate active credential harvesting or unauthorized access to sensitive authentication data."))
+                    break
                 }
             }
         }

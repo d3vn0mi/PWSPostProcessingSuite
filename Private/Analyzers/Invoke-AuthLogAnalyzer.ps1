@@ -488,6 +488,52 @@ function Invoke-AuthLogAnalyzer {
     }
 
     # -------------------------------------------------------------------------
+    # AUTH-009: Successful login to disabled/locked accounts
+    # -------------------------------------------------------------------------
+    foreach ($ip in $successfulLogins.Keys) {
+        foreach ($login in $successfulLogins[$ip]) {
+            # Check the raw log line for indicators of disabled account login
+            if ($login.Line -match 'expired|locked|disabled') {
+                $null = $findings.Add((New-Finding -Id 'AUTH-009' -Severity 'High' `
+                    -Category 'Suspicious Access' `
+                    -Title "Login to potentially disabled/locked account: $($login.User)" `
+                    -Description "A successful login was recorded for user '$($login.User)' whose account appears to be expired, locked, or disabled. This may indicate account manipulation." `
+                    -ArtifactPath $login.SourceFile `
+                    -Evidence @($login.Line) `
+                    -Recommendation 'Investigate how a locked/disabled account was able to authenticate. Check for PAM bypass or account manipulation.' `
+                    -Timestamp $login.Timestamp `
+                    -MITRE 'T1078' `
+                    -CVSSv3Score '8.1' `
+                    -TechnicalImpact 'Authentication to disabled accounts suggests security control bypass, potentially indicating PAM manipulation or account re-enablement by an attacker.'))
+            }
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # AUTH-010: Login via legacy r-commands (rsh/rlogin)
+    # -------------------------------------------------------------------------
+    foreach ($logFile in $authLogFiles) {
+        if (-not (Test-ArtifactExists -EvidencePath $EvidencePath -LinuxPath $logFile)) { continue }
+        $resolvedPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath $logFile
+        $content = Read-ArtifactContent -Path $resolvedPath
+
+        foreach ($line in $content) {
+            if ($line -match '(rshd|rlogind|rexecd)\[?\d*\]?:.*accepted|login.*rsh|login.*rlogin') {
+                $null = $findings.Add((New-Finding -Id 'AUTH-010' -Severity 'High' `
+                    -Category 'Suspicious Access' `
+                    -Title "Login via legacy r-command detected" `
+                    -Description "Authentication via a legacy r-command (rsh/rlogin/rexec) was detected. These services transmit credentials in cleartext and should be disabled." `
+                    -ArtifactPath $resolvedPath `
+                    -Evidence @($line.Trim()) `
+                    -Recommendation 'Disable all r-command services immediately. Use SSH for all remote access. Investigate the login for unauthorized access.' `
+                    -MITRE 'T1021.004' `
+                    -CVSSv3Score '8.1' `
+                    -TechnicalImpact 'R-command authentication transmits credentials in cleartext and uses weak host-based trust, enabling credential interception and unauthorized access.'))
+            }
+        }
+    }
+
+    # -------------------------------------------------------------------------
     # AUTH-008: Authentication summary
     # -------------------------------------------------------------------------
     $totalFailedAll = 0

@@ -434,7 +434,106 @@ function Invoke-CronAnalyzer {
     }
 
     # -------------------------------------------------------------------------
-    # CRON-006: Informational summary
+    # CRON-007: Cron PATH contains writable directories
+    # -------------------------------------------------------------------------
+    foreach ($cronFile in $cronFiles) {
+        if (Test-ArtifactExists -EvidencePath $EvidencePath -LinuxPath $cronFile) {
+            $resolvedPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath $cronFile
+            $content = Read-ArtifactContent -Path $resolvedPath
+            foreach ($line in $content) {
+                if ($line -match '^\s*PATH\s*=\s*(.+)$') {
+                    $cronPath = $Matches[1]
+                    $pathDirs = $cronPath -split ':'
+                    $writableDirs = $pathDirs | Where-Object { $_ -match '^(/tmp|/var/tmp|/dev/shm|/home|/run/user)' }
+                    if ($writableDirs.Count -gt 0) {
+                        $null = $findings.Add((New-Finding -Id 'CRON-007' -Severity 'High' `
+                            -Category 'Persistence' `
+                            -Title "Cron PATH contains writable directories" `
+                            -Description "Cron PATH in '$cronFile' includes writable directories: $($writableDirs -join ', '). Commands without absolute paths can be hijacked." `
+                            -ArtifactPath $resolvedPath `
+                            -Evidence @("PATH=$cronPath", "Writable dirs: $($writableDirs -join ', ')") `
+                            -Recommendation 'Remove writable directories from cron PATH. Always use absolute paths in cron jobs.' `
+                            -MITRE 'T1053.003' `
+                            -CVSSv3Score '7.8' `
+                            -TechnicalImpact 'Writable directories in cron PATH allow local users to place malicious binaries that will execute with cron job privileges.'))
+                    }
+                }
+            }
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # CRON-008: incron (inotify cron) jobs present
+    # -------------------------------------------------------------------------
+    $incronFiles = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/etc/incron.d' -Recurse
+    $incronTab = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/etc/incron.conf'
+    $userIncronPaths = @()
+    if (Test-Path $homeDir -PathType Container) {
+        $userDirs = Get-ChildItem -Path $homeDir -Directory -ErrorAction SilentlyContinue
+        foreach ($ud in $userDirs) {
+            $incronPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath "/var/spool/incron/$($ud.Name)"
+            if (Test-Path $incronPath -PathType Leaf) { $userIncronPaths += $incronPath }
+        }
+    }
+
+    $allIncronFiles = @($incronFiles) + @($userIncronPaths | ForEach-Object { Get-Item $_ -ErrorAction SilentlyContinue })
+    if ($allIncronFiles.Count -gt 0) {
+        foreach ($incFile in $allIncronFiles) {
+            if ($null -eq $incFile) { continue }
+            $lines = Read-ArtifactContent -Path $incFile.FullName
+            foreach ($line in $lines) {
+                $trimmed = $line.Trim()
+                if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+                # Check for suspicious commands in incron
+                if ($trimmed -match '/tmp/|/dev/shm/|curl|wget|base64|nc\s') {
+                    $null = $findings.Add((New-Finding -Id 'CRON-008' -Severity 'High' `
+                        -Category 'Persistence' `
+                        -Title "Suspicious incron job detected" `
+                        -Description "An incron (inotify-based cron) job with suspicious commands was found in $($incFile.Name)." `
+                        -ArtifactPath $incFile.FullName `
+                        -Evidence @("File: $($incFile.Name)", "Entry: $trimmed") `
+                        -Recommendation 'Investigate this incron entry. Incron can be used for file-triggered persistence.' `
+                        -MITRE 'T1053.003' `
+                        -CVSSv3Score '7.5' `
+                        -TechnicalImpact 'Incron jobs trigger on filesystem events, enabling covert persistence that activates when specific files are modified or created.'))
+                }
+            }
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # CRON-009: at/batch jobs present
+    # -------------------------------------------------------------------------
+    $atSpoolDir = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath '/var/spool/at'
+    $atJobFiles = @()
+    foreach ($pattern in @('at_jobs*', 'atq*', 'at_queue*')) {
+        $files = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter $pattern
+        foreach ($f in $files) { $atJobFiles += $f }
+    }
+
+    if (Test-Path $atSpoolDir -PathType Container) {
+        $atFiles = Get-ChildItem -Path $atSpoolDir -File -ErrorAction SilentlyContinue
+        foreach ($f in $atFiles) { $atJobFiles += $f }
+    }
+
+    foreach ($atFile in $atJobFiles) {
+        $content = (Read-ArtifactContent -Path $atFile.FullName) -join "`n"
+        if ($content -match '/tmp/|/dev/shm/|curl|wget|base64|nc\s|/dev/tcp') {
+            $null = $findings.Add((New-Finding -Id 'CRON-009' -Severity 'Medium' `
+                -Category 'Persistence' `
+                -Title "Suspicious at/batch job: $($atFile.Name)" `
+                -Description "An at/batch job with suspicious commands was found. At jobs execute once at a scheduled time." `
+                -ArtifactPath $atFile.FullName `
+                -Evidence @("File: $($atFile.Name)") `
+                -Recommendation 'Review at/batch jobs for unauthorized scheduled tasks. Remove suspicious entries with atrm.' `
+                -MITRE 'T1053.001' `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact 'At/batch jobs provide one-time scheduled execution, potentially used for delayed payload execution or timed persistence.'))
+        }
+    }
+
+    # -------------------------------------------------------------------------
+    # CRON-INFO: Informational summary
     # -------------------------------------------------------------------------
     $summaryEvidence = @(
         "Total cron files analyzed: $($analyzedFiles.Count)"
@@ -456,7 +555,7 @@ function Invoke-CronAnalyzer {
         }
     }
 
-    $null = $findings.Add((New-Finding -Id 'CRON-006' -Severity 'Informational' `
+    $null = $findings.Add((New-Finding -Id 'CRON-INFO' -Severity 'Informational' `
         -Category 'Persistence' `
         -Title 'Cron job analysis summary' `
         -Description "Analyzed $($analyzedFiles.Count) cron file(s) and found $($allCronJobs.Count) cron job(s)." `

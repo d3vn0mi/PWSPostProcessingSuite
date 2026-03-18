@@ -319,5 +319,153 @@ function Invoke-UserAccountAnalyzer {
         ))
     }
 
+    # ----------------------------------------------------------------
+    # ACCT-008: Password policy weaknesses in /etc/login.defs
+    # ----------------------------------------------------------------
+    $loginDefsPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath 'etc/login.defs'
+    if (Test-Path $loginDefsPath -PathType Leaf) {
+        $loginDefsLines = Read-ArtifactContent -Path $loginDefsPath
+        $loginDefs = @{}
+        foreach ($line in $loginDefsLines) {
+            $trimmed = $line.Trim()
+            if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+            if ($trimmed -match '^\s*(\S+)\s+(.+)$') {
+                $loginDefs[$Matches[1]] = $Matches[2].Trim()
+            }
+        }
+
+        $policyIssues = @()
+
+        if ($loginDefs.ContainsKey('PASS_MAX_DAYS')) {
+            $maxDays = [int]$loginDefs['PASS_MAX_DAYS']
+            if ($maxDays -gt 365 -or $maxDays -eq 99999) {
+                $policyIssues += "PASS_MAX_DAYS = $maxDays (passwords never/rarely expire)"
+            }
+        }
+        if ($loginDefs.ContainsKey('PASS_MIN_DAYS')) {
+            $minDays = [int]$loginDefs['PASS_MIN_DAYS']
+            if ($minDays -eq 0) {
+                $policyIssues += "PASS_MIN_DAYS = 0 (no minimum password age)"
+            }
+        }
+        if ($loginDefs.ContainsKey('PASS_MIN_LEN')) {
+            $minLen = [int]$loginDefs['PASS_MIN_LEN']
+            if ($minLen -lt 8) {
+                $policyIssues += "PASS_MIN_LEN = $minLen (minimum length below 8)"
+            }
+        }
+        if ($loginDefs.ContainsKey('ENCRYPT_METHOD')) {
+            $method = $loginDefs['ENCRYPT_METHOD']
+            if ($method -in @('DES', 'MD5')) {
+                $policyIssues += "ENCRYPT_METHOD = $method (weak hash algorithm)"
+            }
+        }
+        elseif ($loginDefs.ContainsKey('MD5_CRYPT_ENAB') -and $loginDefs['MD5_CRYPT_ENAB'] -eq 'yes') {
+            $policyIssues += "MD5_CRYPT_ENAB = yes (MD5 hashing enabled)"
+        }
+
+        if ($policyIssues.Count -gt 0) {
+            $findings.Add((New-Finding `
+                -Id 'ACCT-008' `
+                -Severity 'Medium' `
+                -Category $analyzerCategory `
+                -Title 'Weak password policy in /etc/login.defs' `
+                -Description "Password policy weaknesses detected in /etc/login.defs: $($policyIssues.Count) issue(s) found." `
+                -ArtifactPath $loginDefsPath `
+                -Evidence $policyIssues `
+                -Recommendation 'Update /etc/login.defs: Set PASS_MAX_DAYS to 90, PASS_MIN_DAYS to 1, PASS_MIN_LEN to 12, ENCRYPT_METHOD to SHA512 or YESCRYPT.' `
+                -MITRE $mitreValidAccounts `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact 'Weak password policies increase the risk of credential compromise through brute-force attacks or use of weak passwords.'
+            ))
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # ACCT-009: Users in sensitive groups
+    # ----------------------------------------------------------------
+    $sensitiveGroups = @('docker', 'lxd', 'lxc', 'disk', 'adm', 'shadow', 'video', 'kmem', 'staff')
+
+    # Parse /etc/group
+    $groupMemberships = @{}
+    foreach ($line in $groupLines) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed) -or $trimmed.StartsWith('#')) { continue }
+        $fields = $trimmed.Split(':')
+        if ($fields.Count -lt 4) { continue }
+        $groupName = $fields[0]
+        $members = $fields[3] -split ','
+
+        if ($groupName -in $sensitiveGroups -and $members.Count -gt 0) {
+            $validMembers = $members | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            if ($validMembers.Count -gt 0) {
+                $groupMemberships[$groupName] = $validMembers
+            }
+        }
+    }
+
+    foreach ($group in $groupMemberships.Keys) {
+        $members = $groupMemberships[$group]
+        $severity = if ($group -in @('docker', 'lxd', 'lxc', 'disk')) { 'High' } else { 'Medium' }
+        $cvss = if ($severity -eq 'High') { '7.8' } else { '5.3' }
+
+        $findings.Add((New-Finding `
+            -Id 'ACCT-009' `
+            -Severity $severity `
+            -Category $analyzerCategory `
+            -Title "Users in sensitive group '$group': $($members -join ', ')" `
+            -Description "User(s) $($members -join ', ') are members of the '$group' group. $(switch ($group) { 'docker' { 'Docker group membership is equivalent to root access.' } 'lxd' { 'LXD group allows creating privileged containers for host escape.' } 'disk' { 'Disk group grants raw access to all block devices.' } 'shadow' { 'Shadow group can read password hashes.' } default { 'This group grants elevated privileges.' } })" `
+            -ArtifactPath $groupPath `
+            -Evidence @("Group: $group", "Members: $($members -join ', ')") `
+            -Recommendation "Review group membership. Remove users from '$group' unless required for their role." `
+            -MITRE $mitreValidAccounts `
+            -CVSSv3Score $cvss `
+            -TechnicalImpact "Membership in the '$group' group grants elevated privileges that can be leveraged for privilege escalation."
+        ))
+    }
+
+    # ----------------------------------------------------------------
+    # ACCT-010: Accounts that have never logged in but have interactive shells
+    # ----------------------------------------------------------------
+    $lastlogPath = Resolve-ArtifactPath -EvidencePath $EvidencePath -LinuxPath 'var/log/lastlog'
+    $lastlogOutput = @()
+    foreach ($pattern in @('lastlog*', 'last_login*')) {
+        $files = Get-ArtifactFiles -EvidencePath $EvidencePath -LinuxPath '/' -Filter $pattern
+        foreach ($f in $files) { $lastlogOutput += $f }
+    }
+
+    if ($lastlogOutput.Count -gt 0) {
+        $neverLoggedIn = @()
+        foreach ($logFile in $lastlogOutput) {
+            $lines = Read-ArtifactContent -Path $logFile.FullName
+            foreach ($line in $lines) {
+                if ($line -match '^\s*(\S+)\s+\*\*Never logged in\*\*') {
+                    $username = $Matches[1]
+                    # Check if this user has an interactive shell
+                    $userEntry = $passwdEntries | Where-Object { $_.Username -eq $username }
+                    if ($userEntry -and $userEntry.Shell -in $interactiveShells -and $userEntry.UID -ge 1000) {
+                        $neverLoggedIn += $username
+                    }
+                }
+            }
+        }
+
+        if ($neverLoggedIn.Count -gt 0) {
+            $findings.Add((New-Finding `
+                -Id 'ACCT-010' `
+                -Severity 'Low' `
+                -Category $analyzerCategory `
+                -Title "Accounts with shells that never logged in ($($neverLoggedIn.Count))" `
+                -Description "Found $($neverLoggedIn.Count) user account(s) with interactive shells that have never logged in. These may be orphaned or unused accounts." `
+                -ArtifactPath ($lastlogOutput[0].FullName) `
+                -Evidence @("Never-logged-in accounts with shells: $($neverLoggedIn -join ', ')") `
+                -Recommendation 'Disable or remove unused accounts. Set shell to /usr/sbin/nologin for accounts that should not log in.' `
+                -MITRE $mitreValidAccounts `
+                -CVSSv3Score '2.6' `
+                -TechnicalImpact 'Unused accounts with interactive shells increase the attack surface and may be targeted for credential compromise.'
+            ))
+        }
+    }
+
     return $findings.ToArray()
 }

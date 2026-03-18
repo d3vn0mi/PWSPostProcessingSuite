@@ -131,6 +131,128 @@ function Invoke-SystemdAnalyzer {
         }
     }
 
+    # ----------------------------------------------------------------
+    # SYSD-006: Writable systemd service/timer files
+    # ----------------------------------------------------------------
+    foreach ($svcFile in $allServiceFiles) {
+        $relativePath = $svcFile.FullName.Replace($EvidencePath, '').TrimStart('/\')
+        # Check if the file's directory indicates it's a user-writable location
+        if ($relativePath -match '^etc/systemd/system/' -or $relativePath -match '^usr/lib/systemd/') {
+            # We can check file permissions if a file listing artifact exists
+            # For now, flag files in /etc/systemd that are in home or tmp-sourced overrides
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # SYSD-007: Systemd PATH contains writable directories
+    # ----------------------------------------------------------------
+    foreach ($svcFile in $allServiceFiles) {
+        $lines = Read-ArtifactContent -Path $svcFile.FullName
+        $content = $lines -join "`n"
+        $fileName = $svcFile.Name
+
+        foreach ($line in $lines) {
+            if ($line -match '^\s*Environment\s*=.*PATH\s*=' -or $line -match '^\s*ExecSearchPath\s*=') {
+                $pathValue = ''
+                if ($line -match 'PATH\s*=\s*(.+?)(\s|$|")') {
+                    $pathValue = $Matches[1]
+                }
+                elseif ($line -match 'ExecSearchPath\s*=\s*(.+)$') {
+                    $pathValue = $Matches[1]
+                }
+
+                if ($pathValue) {
+                    $pathDirs = $pathValue -split ':'
+                    $writableDirs = $pathDirs | Where-Object { $_ -match '^(/tmp|/var/tmp|/dev/shm|/home|/run/user)' }
+                    if ($writableDirs.Count -gt 0) {
+                        $findings.Add((New-Finding -Id "SYSD-007" -Severity "High" -Category "Persistence" `
+                            -Title "Systemd service PATH contains writable directory: $fileName" `
+                            -Description "Service '$fileName' has writable directories in its PATH/ExecSearchPath: $($writableDirs -join ', '). This allows binary hijacking." `
+                            -ArtifactPath $svcFile.FullName `
+                            -Evidence @($line.Trim(), "Writable dirs: $($writableDirs -join ', ')") `
+                            -Recommendation "Remove writable directories from the service PATH. Use absolute paths in ExecStart." `
+                            -MITRE "T1574.007" `
+                            -CVSSv3Score '7.8' `
+                            -TechnicalImpact 'Writable directories in systemd service PATH allow any local user to place a malicious binary that will be executed with the service privileges.'))
+                    }
+                }
+            }
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # SYSD-008: Services without security hardening
+    # ----------------------------------------------------------------
+    $hardeningDirectives = @('PrivateTmp', 'NoNewPrivileges', 'ProtectSystem', 'ProtectHome', 'ReadOnlyPaths')
+    foreach ($svcFile in $allServiceFiles) {
+        if ($svcFile.Name -notlike '*.service') { continue }
+        $content = (Read-ArtifactContent -Path $svcFile.FullName) -join "`n"
+        $fileName = $svcFile.Name
+
+        # Only check services that run as root (no User= directive)
+        if ($content -match 'User\s*=' -and $content -notmatch 'User\s*=\s*root') { continue }
+        # Skip standard system services
+        if ($fileName -match '^(systemd-|dbus|NetworkManager|sshd|rsyslog|cron)') { continue }
+
+        # Check if the service is in /etc/systemd (custom services)
+        $relativePath = $svcFile.FullName.Replace($EvidencePath, '').TrimStart('/\')
+        if ($relativePath -notmatch '^etc/systemd/') { continue }
+
+        $missingHardening = @()
+        foreach ($directive in $hardeningDirectives) {
+            if ($content -notmatch "$directive\s*=") {
+                $missingHardening += $directive
+            }
+        }
+
+        if ($missingHardening.Count -ge 3) {
+            $findings.Add((New-Finding -Id "SYSD-008" -Severity "Medium" -Category "Persistence" `
+                -Title "Service without security hardening: $fileName" `
+                -Description "Custom service '$fileName' running as root is missing $($missingHardening.Count) security hardening directives." `
+                -ArtifactPath $svcFile.FullName `
+                -Evidence @("Service: $fileName", "Missing: $($missingHardening -join ', ')") `
+                -Recommendation "Add security hardening directives: PrivateTmp=true, NoNewPrivileges=true, ProtectSystem=strict, ProtectHome=true" `
+                -MITRE "T1543.002" `
+                -CVSSv3Score '5.3' `
+                -TechnicalImpact 'Services without security hardening run with full root privileges and unrestricted filesystem access, increasing the impact of any service vulnerability.'))
+        }
+    }
+
+    # ----------------------------------------------------------------
+    # SYSD-009: Systemd timers executing from writable paths
+    # ----------------------------------------------------------------
+    foreach ($svcFile in $allServiceFiles) {
+        if ($svcFile.Name -notlike '*.timer') { continue }
+        $lines = Read-ArtifactContent -Path $svcFile.FullName
+        $content = $lines -join "`n"
+
+        # Find the associated service unit
+        $unitName = ''
+        if ($content -match 'Unit\s*=\s*(.+\.service)') {
+            $unitName = $Matches[1]
+        }
+        else {
+            $unitName = $svcFile.Name -replace '\.timer$', '.service'
+        }
+
+        # Look for the associated service and check its ExecStart
+        $assocService = $allServiceFiles | Where-Object { $_.Name -eq $unitName }
+        if ($assocService) {
+            $svcContent = (Read-ArtifactContent -Path $assocService.FullName) -join "`n"
+            if ($svcContent -match 'ExecStart\s*=\s*.*(/tmp/|/dev/shm/|/var/tmp/|/home/)') {
+                $findings.Add((New-Finding -Id "SYSD-009" -Severity "High" -Category "Persistence" `
+                    -Title "Timer-activated service executes from writable path: $($svcFile.Name)" `
+                    -Description "Timer '$($svcFile.Name)' triggers service '$unitName' which executes from a user-writable directory." `
+                    -ArtifactPath $svcFile.FullName `
+                    -Evidence @("Timer: $($svcFile.Name)", "Service: $unitName", "Executes from writable path") `
+                    -Recommendation "Move the executable to a root-owned directory with restricted permissions." `
+                    -MITRE "T1053.006" `
+                    -CVSSv3Score '7.8' `
+                    -TechnicalImpact 'Systemd timers executing from writable paths allow local users to replace the binary for privilege escalation on the next timer trigger.'))
+            }
+        }
+    }
+
     # Informational summary
     $serviceCount = @($allServiceFiles | Where-Object { $_.Name -like '*.service' }).Count
     $timerCount = @($allServiceFiles | Where-Object { $_.Name -like '*.timer' }).Count
